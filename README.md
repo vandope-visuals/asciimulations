@@ -54,9 +54,7 @@ the landing page features 100 live thumbnails. each tile is a real running minia
 - **three charsets** — `ascii` (12-level ramp), `dots` (round glyphs), `blocks` (solid shades); swap live without restarting the sim
 - **four themes** — green phosphor, white, amber, and flat paper (black-on-white, no glow)
 - **fullscreen mode** — pure simulation, all chrome stripped away
-- **a live HUD** per sim — gen counts, particle counts, fps, and the keys that do something
 - **prev / next / random** navigation to surf the whole set
-- **pause and reseed** any running sim from the keyboard
 - **feeds straight into [m-or.ph](https://m-or.ph)** — open a sim in fullscreen, then add it as a **screen capture** source in m-or.ph; now any simulation here becomes a live VJ input you can crossfade, glitch, and run through the whole effects chain
 
 ## the stack
