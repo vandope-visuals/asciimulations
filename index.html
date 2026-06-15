@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCIImulations</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='2.5' width='14' height='11' rx='1.5' fill='none' stroke='%2333ff66' stroke-width='1.5'/><path d='M4 6.5l2.5 1.8L4 10' fill='none' stroke='%2333ff66' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/><line x1='8' y1='10.2' x2='11.5' y2='10.2' stroke='%2333ff66' stroke-width='1.5' stroke-linecap='round'/></svg>">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=VT323&family=Departure+Mono&display=swap');
+
+/* ========================================================================
+   HYBRID SYSTEM: m-or.ph 1-bit Mac chrome  +  phosphor terminal sims.
+   Structure (dither, stripes, 2px borders, pixel type, hard edges) is constant.
+   Only --ink / --paper / glow swap per theme. 4 themes: green/white/orange/paper
+   ======================================================================== */
+:root,
+:root[data-theme="green"] {
+  --ink:#33ff66; --paper:#07120b; --bord:rgba(51,255,102,0.45); --dim:#1f7a3d;
+  --glow:rgba(51,255,102,0.35); --glowsoft:rgba(51,255,102,0.10);
+  --simbg:#07120b; --simglow:0 0 4px var(--glow);
+}
+:root[data-theme="white"] {
+  --ink:#e8e8e8; --paper:#0b0b0c; --bord:rgba(232,232,232,0.45); --dim:#6a6a6a;
+  --glow:rgba(255,255,255,0.30); --glowsoft:rgba(255,255,255,0.08);
+  --simbg:#0b0b0c; --simglow:0 0 4px var(--glow);
+}
+:root[data-theme="orange"] {
+  --ink:#ff9a3c; --paper:#140a03; --bord:rgba(255,154,60,0.45); --dim:#9c4f12;
+  --glow:rgba(255,154,60,0.35); --glowsoft:rgba(255,154,60,0.10);
+  --simbg:#140a03; --simglow:0 0 4px var(--glow);
+}
+:root[data-theme="paper"] {
+  --ink:#000; --paper:#fff; --bord:rgba(0,0,0,0.45); --dim:#777;
+  --glow:transparent; --glowsoft:rgba(0,0,0,0.06);
+  --simbg:#fff; --simglow:none;
+}
+:root{
+  /* dither + stripe fills are drawn in --ink via currentColor-ish masks.
+     We bake two variants and switch with the theme by recoloring via filter. */
+  --chrome:'Silkscreen','Departure Mono',monospace;
+  --body:'Departure Mono','VT323',monospace;
+  --mono:'Departure Mono','VT323',monospace;
+  --font:'Departure Mono','VT323','Menlo',monospace;
+  --font-size:13px; --line-h:14px; --bw:1px;
+}
+
+/* Dither/stripe patterns built from the ink color via a tiny inline mask trick:
+   we use background layers tinted with --ink through color-mix where supported,
+   falling back to opacity. Implemented as pseudo-element overlays per surface. */
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{
+  width:100%; min-height:100%;
+  background:var(--paper); color:var(--ink);
+  font-family:var(--body); font-size:var(--font-size);
+  -webkit-font-smoothing:none; font-smooth:never; image-rendering:pixelated;
+  user-select:none; -webkit-user-select:none;
+}
+
+/* dither helper: 1px ink dot on 5px grid; stripe helper: 1px ink line on 2px.
+   Tinted by ink using a masked pseudo so it follows the theme color. */
+.dither{ position:relative; }
+.dither::before{
+  content:""; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background-color:var(--ink); opacity:0.10;
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='5' height='5' shape-rendering='crispEdges'><rect x='1' y='1' width='1' height='1' fill='black'/></svg>") repeat;
+  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='5' height='5' shape-rendering='crispEdges'><rect x='1' y='1' width='1' height='1' fill='black'/></svg>") repeat;
+}
+.dither > *{ position:relative; z-index:1; }
+
+/* striped title bar */
+.titlebar{
+  position:relative; border-bottom:var(--bw) solid var(--bord);
+  background:var(--paper); display:flex; align-items:center;
+  min-height:24px;
+}
+.titlebar::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background-color:var(--ink); opacity:0.45;
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'><rect width='2' height='1' fill='black'/></svg>") repeat;
+  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'><rect width='2' height='1' fill='black'/></svg>") repeat;
+}
+.titlebar > *{ position:relative; z-index:1; }
+
+/* TOPBAR (System 7 menu strip) */
+.topbar{ padding:0 8px; gap:8px; z-index:5; }
+.topbar .winsquare{ width:14px; height:14px; background:var(--paper); border:var(--bw) solid var(--bord); flex:none; }
+.brand{
+  font-family:var(--chrome); font-size:11px; letter-spacing:0.12em; color:var(--ink);
+  background:var(--paper); padding:3px 9px; border:var(--bw) solid var(--bord); text-transform:uppercase;
+}
+.sdot{ width:8px; height:8px; background:var(--ink); animation:blink 1.4s steps(2,end) infinite; flex:none; }
+@keyframes blink{ 50%{opacity:0;} }
+.spacer{ flex:1; }
+
+/* HARDWARE BUTTONS — blocky, invert on hover */
+.themes{ display:flex; gap:8px; }
+.themes button{
+  font-family:var(--chrome); font-size:9px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;
+  color:var(--ink); background:var(--paper); border:var(--bw) solid var(--bord); border-radius:0;
+  padding:3px 8px; cursor:pointer; min-height:22px; line-height:1.1;
+}
+.themes button:hover{ background:var(--ink); color:var(--paper); }
+.themes button.active{ background:var(--ink); color:var(--paper); }
+.themes button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+/* LANDING */
+.landing-head{ text-align:center; padding:24px 16px 10px; }
+.landing-head h1{ font-family:var(--chrome); font-size:clamp(18px,5.2vw,29px); letter-spacing:0.14em; font-weight:700; text-transform:uppercase; line-height:1.1; white-space:nowrap; }
+.landing-head h1 .hl-ascii{ font-size:1.2em; }
+.landing-head h1 .hl-mul{ opacity:0.8; }
+.landing-head p{ font-family:var(--mono); margin-top:10px; opacity:0.7; font-size:13px; letter-spacing:0.04em; text-transform:lowercase; }
+.landing-head p .hl100{ opacity:1; font-weight:700; color:var(--hud,var(--ink)); }
+.grid100{ display:grid; grid-template-columns:repeat(10,1fr); gap:6px; max-width:1340px; margin:20px auto 40px; padding:0 16px; }
+.tile{
+  aspect-ratio:1/1; border:var(--bw) solid var(--bord); background:var(--paper);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  position:relative; overflow:hidden;
+}
+.tile:hover{ background:var(--ink); }
+.tile:hover pre{ filter:invert(1); }
+.tile:focus-visible{ outline:2px solid var(--ink); outline-offset:1px; }
+.tile.empty{ cursor:default; }
+.tile.empty::after{
+  content:""; position:absolute; inset:0; background-color:var(--ink); opacity:0.10;
+  -webkit-mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='7' shape-rendering='crispEdges'><rect x='1' y='1' width='1' height='1' fill='black'/></svg>") repeat;
+  mask:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='7' shape-rendering='crispEdges'><rect x='1' y='1' width='1' height='1' fill='black'/></svg>") repeat;
+}
+.tile.empty:hover{ background:var(--paper); }
+.tile pre{ margin:0; font-size:calc(9px*0.82); line-height:1; --fs-line:9px; --cw:9px; white-space:pre; color:var(--ink); text-shadow:var(--simglow); pointer-events:none; }
+.tile pre .gr{ display:grid; height:9px; }
+.tile pre .gr > i{ display:flex; align-items:center; justify-content:center; overflow:hidden; font-style:normal; width:9px; height:9px; line-height:1; }
+.tile pre .gr > i.h{ color:var(--hud); }
+.tile pre .gr > i.d{ color:var(--dim); }
+.tile pre .gr > i[style*="--ga"]{ text-shadow:0 0 4px color-mix(in srgb, var(--glow) calc(var(--ga,1) * 100%), transparent); }
+.tile .num{ position:absolute; top:3px; left:4px; font-family:var(--chrome); font-size:9px; opacity:0.6; z-index:2; }
+.tile .lbl{
+  position:absolute; bottom:0; left:0; right:0; font-family:var(--chrome); font-size:8px;
+  text-align:center; padding:3px 0; background:var(--ink); color:var(--paper);
+  opacity:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-transform:uppercase; z-index:2;
+}
+.tile:hover .lbl{ opacity:1; }
+
+.pager{ display:flex; justify-content:center; align-items:center; gap:10px; margin:0 auto 56px; }
+.pager .pdot{ width:0; height:0; padding:0; border:none; background:none; cursor:pointer; font-family:var(--mono); font-size:16px; line-height:1; color:var(--dim); opacity:0.6; transition:opacity .12s,color .12s; width:auto; height:auto; }
+.pager .pdot::before{ content:"\25cb"; }
+.pager .pdot.active::before{ content:"\25cf"; }
+.pager .pdot.active{ color:var(--ink); opacity:1; }
+.pager .pdot:hover{ color:var(--ink); opacity:1; }
+.pager .pdot:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+.pager .parrow{ background:none; border:none; cursor:pointer; font-family:var(--chrome); font-size:11px; color:var(--dim); opacity:0.6; padding:4px 6px; transition:opacity .12s,color .12s; }
+.pager .parrow:hover{ color:var(--ink); opacity:1; }
+.pager .parrow:disabled{ opacity:0.2; cursor:default; }
+
+/* INNER */
+#inner{ display:none; }
+#inner.show{ display:block; }
+body.inner-open{ overflow:hidden; height:100vh; height:100dvh; }
+.inner-wrap{ max-width:1400px; margin:0 auto; padding:18px 16px 20px; }
+.stage{ border:var(--bw) solid var(--bord); background:var(--simbg); display:flex; justify-content:center; align-items:flex-start; padding:14px; overflow:hidden; }
+.inner-head{ border:var(--bw) solid var(--bord); border-bottom:none; padding:0 10px; gap:12px; min-height:46px; }
+.inner-head .ico{
+  width:32px; height:32px; flex:none; border:var(--bw) solid var(--bord); background:var(--paper);
+  display:flex; align-items:center; justify-content:center;
+  font-size:6px; line-height:6px; white-space:pre; overflow:hidden; color:var(--ink); text-shadow:var(--simglow);
+}
+.inner-head .meta{ flex:1; }
+.inner-head .name{ font-family:var(--chrome); font-size:11px; letter-spacing:0.06em; text-transform:uppercase; }
+.inner-head .cat{ font-family:var(--mono); font-size:12px; opacity:0.65; letter-spacing:0.04em; text-transform:lowercase; }
+.iconbtn{
+  font-family:var(--chrome); font-size:9px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;
+  color:var(--ink); background:var(--paper); border:var(--bw) solid var(--bord); border-radius:0;
+  padding:5px 9px; cursor:pointer; min-height:24px; line-height:1.1;
+}
+.iconbtn:hover{ background:var(--ink); color:var(--paper); }
+.iconbtn:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+.iconbtn:disabled{ color:var(--dim); border-color:var(--bord); opacity:0.4; cursor:default; }
+.iconbtn:disabled:hover{ background:var(--paper); color:var(--dim); }
+.homeico{ font-size:1.2em; vertical-align:-0.08em; }
+.nav-row{ display:flex; gap:12px; align-items:center; }
+
+.grid{ margin:0; font-family:var(--mono); --cw:var(--fs-line,14px); font-size:calc(var(--cw)*0.82); line-height:1; color:var(--ink); text-shadow:var(--simglow); display:block; }
+.grid .gr{ display:grid; height:var(--cw); }
+.grid .gr > i{ display:flex; align-items:center; justify-content:center; overflow:hidden; font-style:normal; width:var(--cw); height:var(--cw); line-height:1; }
+.grid .gr > i.h{ color:var(--hud); }
+.grid .gr > i.d{ color:var(--dim); }
+.grid .gr > i[style*="--ga"]{ text-shadow:0 0 4px color-mix(in srgb, var(--glow) calc(var(--ga,1) * 100%), transparent); }
+.grid .hud{ opacity:0.85; text-transform:uppercase; }
+
+.controls{ border:var(--bw) solid var(--bord); border-top:none; padding:14px 16px; display:grid; grid-template-columns:1.2fr 1fr 1fr 1fr; gap:20px; align-items:start; }
+.ctrl-group{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+.ctrl-group .glabel, .ctrl-col .glabel{ font-family:var(--chrome); font-size:8px; font-weight:700; letter-spacing:0.06em; opacity:0.7; text-transform:uppercase; }
+.ctrl-col{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+.charset-modes{ display:flex; gap:8px; width:100%; }
+.charset-modes button{
+  flex:1; text-align:center;
+  font-family:var(--chrome); font-size:9px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase;
+  background:var(--paper); border:var(--bw) solid var(--bord); color:var(--ink); padding:4px 8px; cursor:pointer; min-height:24px;
+}
+.charset-modes button:hover{ background:var(--ink); color:var(--paper); }
+.charset-modes button.active{ background:var(--ink); color:var(--paper); }
+.charset-modes button:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+
+/* square slider — black track, white block thumb, ew-resize */
+.slider-row{ display:flex; flex-direction:column; gap:4px; font-size:13px; font-family:var(--mono); }
+.slider-row .srow-top{ display:flex; justify-content:space-between; align-items:center; }
+.slider-row label{ font-family:var(--chrome); font-size:8px; letter-spacing:0.04em; text-transform:uppercase; opacity:0.8; }
+.slider-row .srow-bot{ display:flex; align-items:center; gap:8px; }
+.slider-row input[type=range]{
+  -webkit-appearance:none; appearance:none; flex:1; height:22px; background:transparent; outline:none; cursor:ew-resize;
+}
+.slider-row input[type=range]::-webkit-slider-runnable-track{ height:10px; background:var(--ink); border:var(--bw) solid var(--bord); }
+.slider-row input[type=range]::-moz-range-track{ height:10px; background:var(--ink); border:var(--bw) solid var(--bord); }
+.slider-row input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:14px; height:20px; margin-top:-7px; background:var(--paper); border:var(--bw) solid var(--bord); border-radius:0; cursor:ew-resize; }
+.slider-row input[type=range]::-moz-range-thumb{ width:14px; height:20px; background:var(--paper); border:var(--bw) solid var(--bord); border-radius:0; }
+.slider-row .val{ width:46px; text-align:center; background:var(--paper); border:var(--bw) solid var(--bord); padding:0 4px; font-size:13px; text-transform:lowercase; }
+
+/* fullscreen — pure sim, no chrome */
+#inner.fs .inner-head, #inner.fs .controls{ display:none; }
+#inner.fs .inner-wrap{ max-width:none; padding:0; margin:0; }
+#inner.fs .stage{ position:fixed; inset:0; z-index:150; border:none; padding:0; display:block; background:var(--simbg); overflow:hidden; }
+#inner.fs .grid{ --cw:var(--fs-line,14px); font-size:calc(var(--cw)*0.82); line-height:1; display:block; }
+.fs-exit{ display:none; position:fixed; top:14px; right:16px; z-index:160; opacity:0.5; }
+.fs-exit:hover{ opacity:1; }
+#inner.fs .fs-exit{ display:block; }
+
+@media (max-width:640px){
+  .grid100{ grid-template-columns:repeat(5,1fr); }
+
+  /* landing: surface the pager above the grid so paging needs no scroll.
+     Force children to stretch full width so tile sizing matches block flow. */
+  #landing{ display:flex; flex-direction:column; align-items:stretch; padding-bottom:52px; }
+  #landing .landing-head{ order:0; }
+  #landing .pager{ order:1; margin:4px auto 16px; }
+  #landing .grid100{ order:2; width:100%; margin:0 auto 40px; padding:0 16px; }
+
+  /* top theme bar: on mobile the top strip keeps only the brand;
+     the theme toggles become a fixed footer pinned to the visible viewport bottom */
+  .topbar{ padding:5px 8px; }
+  .brand{ font-size:9px; letter-spacing:0.08em; padding:3px 7px; }
+  .topbar .spacer{ flex:1; }
+  .themes{
+    position:fixed; left:0; right:0; bottom:0; z-index:120;
+    display:flex; gap:6px; justify-content:space-between;
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    background:var(--paper); border-top:var(--bw) solid var(--bord);
+  }
+  .themes button{ flex:1; padding:7px 4px; }
+  /* reserve room so fixed footer never covers page content */
+  .inner-wrap{ padding-bottom:calc(52px + env(safe-area-inset-bottom)); }
+  /* footer hidden in fullscreen (pure sim) */
+  #inner.fs .themes{ display:none; }
+
+  /* inner header: icon + name on top, nav buttons as an even icon-only row below */
+  .inner-head{ flex-wrap:wrap; padding:6px 8px; row-gap:6px; min-height:0; }
+  .inner-head .ico{ width:28px; height:28px; }
+  .inner-head .meta{ flex:1 1 auto; min-width:0; }
+  .inner-head .name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .inner-head .iconbtn{ flex:1 1 0; min-width:0; text-align:center; padding:8px 4px; }
+  .inner-head .iconbtn .btn-label{ display:none; }   /* icon-only on mobile */
+  .inner-head .iconbtn .homeico{ font-size:1.3em; }
+  .nav-row{ display:flex; gap:6px; flex:1 1 100%; }
+
+  /* control strip: 2 columns => 2x2 (characters | zoom / tune1 | tune2) */
+  .controls{ grid-template-columns:1fr 1fr; gap:14px 16px; padding:12px; }
+  .charset-modes{ gap:4px; }
+  .charset-modes button{ min-width:0; padding:4px 2px; letter-spacing:0; }
+}
+</style>
+</head>
+<body>
+<div class="topbar titlebar">
+  <span class="winsquare"></span>
+  <span class="brand">VANDOPE_VISUALS</span>
+  <span class="sdot"></span>
+  <span class="spacer"></span>
+  <div class="themes" id="themes">
+    <button data-t="green"  class="active">green</button>
+    <button data-t="white">white</button>
+    <button data-t="orange">amber</button>
+    <button data-t="paper">paper</button>
+  </div>
+</div>
+
+<section id="landing" class="dither">
+  <div class="landing-head">
+    <h1><span class="hl-ascii">ASCII</span><span class="hl-mul">MULATIONS</span></h1>
+    <p>a gallery of <span class="hl100">100</span> living character-grid simulations</p>
+  </div>
+  <div class="grid100" id="grid100"></div>
+  <div class="pager" id="pager"></div>
+</section>
+
+<section id="inner">
+  <div class="inner-wrap">
+    <div class="inner-head titlebar">
+      <div class="ico" id="innerIco"></div>
+      <div class="meta">
+        <div class="name" id="innerName">&mdash;</div>
+        <div class="cat" id="innerCat">&mdash;</div>
+      </div>
+      <div class="nav-row">
+      <button class="iconbtn" id="backBtn" title="all simulations" aria-label="home"><span class="homeico">&#8962;</span> <span class="btn-label">home</span></button>
+      <button class="iconbtn" id="prevBtn" title="previous sim" aria-label="previous sim">&#9665; <span class="btn-label">prev</span></button>
+      <button class="iconbtn" id="randBtn" title="random sim" aria-label="random sim">&#10042; <span class="btn-label">random</span></button>
+      <button class="iconbtn" id="nextBtn" title="next sim" aria-label="next sim"><span class="btn-label">next</span> &#9655;</button>
+      <button class="iconbtn" id="fsBtn" title="fullscreen" aria-label="fullscreen">&#9974; <span class="btn-label">fullscreen</span></button>
+      </div>
+    </div>
+    <div class="stage"><pre class="grid" id="grid" tabindex="0"></pre></div>
+    <div class="controls dither">
+      <div class="ctrl-col">
+        <span class="glabel">characters</span>
+        <div class="charset-modes" id="charsetModes">
+          <button data-m="ascii" class="active">ascii</button>
+          <button data-m="dots">dots</button>
+          <button data-m="blocky">blocks</button>
+        </div>
+      </div>
+      <div class="ctrl-col" id="tuneCol1"></div>
+      <div class="ctrl-col" id="tuneCol2"></div>
+      <div class="ctrl-col" id="zoomCol"></div>
+    </div>
+  </div>
+  <button class="iconbtn fs-exit" id="fsExit">&#10005; exit</button>
+</section>
+
+<script>
+const COLS=100, ROWS=44, TAU=Math.PI*2;
+const clamp=(v,lo,hi)=>v<lo?lo:v>hi?hi:v;
+const CHARSETS={ blocky:' \u2591\u2592\u2593\u2588', ascii:' .,-~:;=!*#$@', dots:' .\u00b7\u2218\u2022\u25cf\u2b24' };
+// Sub-step opacity: dots(7) and blocks(5) have few glyph levels, so we smooth
+// the gradient by fading each glyph toward the next using the fractional part
+// of t*rampLength. ASCII(12) is already smooth and is left at full opacity.
+// shadeChar stashes the fraction in _subFrac; Grid.set() consumes it per cell.
+let _subFrac=1, _subTok=0;
+function shadeChar(ramp,t){ const f=clamp(t,0,1)*ramp.length; const i=clamp(Math.floor(f),0,ramp.length-1);
+  if(ramp===CHARSETS.dots||ramp===CHARSETS.blocky){ const frac=f-Math.floor(f); _subFrac= i>=ramp.length-1 ? 1 : 0.45+0.55*frac; _subTok++; } else { _subFrac=1; }
+  return ramp[i]; }
+
+class Grid {
+  constructor(c,r){ this.cols=c; this.rows=r; this._setTok=-1; this.clear(); }
+  clear(ch=' '){ const n=this.cols*this.rows; this.cells=new Array(n).fill(ch); this.col=new Array(n).fill(null); this.alpha=new Array(n).fill(1); }
+  set(x,y,ch,color){ x|=0; y|=0; let a=1; if(_subTok!==this._setTok){ a=_subFrac; this._setTok=_subTok; _subFrac=1; } if(x<0||y<0||x>=this.cols||y>=this.rows)return; const i=y*this.cols+x; this.cells[i]=ch; this.col[i]=color||null; this.alpha[i]=a; }
+  toHTML(){
+    // Every character occupies its own 1ch grid cell. A wide glyph (block,
+    // round dot) fills its cell and cannot shift neighbors. Color carried by a
+    // 1-char class to keep the markup small. Empty cells are skipped (grid
+    // auto-places by column via grid-column on non-blank cells only would be
+    // costly, so we emit a thin spacer run instead).
+    let out='';
+    for(let y=0;y<this.rows;y++){
+      let line='';
+      for(let x=0;x<this.cols;x++){ const i=y*this.cols+x; let ch=this.cells[i];
+        if(ch===' '){ line+='<i></i>'; continue; }
+        if(ch==='&')ch='&amp;'; else if(ch==='<')ch='&lt;'; else if(ch==='>')ch='&gt;';
+        const c=this.col[i];
+        const cls = c==='var(--hud)'?'h': c==='var(--dim,var(--ink))'||c==='var(--dim)'?'d':'';
+        const a=this.alpha[i];
+        const sty = a<0.999 ? ' style="opacity:'+a.toFixed(2)+';--ga:'+a.toFixed(2)+'"' : '';
+        line+= '<i'+(cls?' class="'+cls+'"':'')+sty+'>'+ch+'</i>';
+      }
+      out+='<span class="gr" style="grid-template-columns:repeat('+this.cols+',var(--cw))">'+line+'</span>';
+    }
+    return out;
+  }
+}
+
+class Engine {
+  constructor(pre,sketch,opts){ opts=opts||{};
+    this.pre=pre; this.sketch=sketch;
+    this.cols=(opts.cols||COLS); this.rows=(opts.rows||ROWS); this.grid=new Grid(this.cols,this.rows);
+    this.fps=sketch.fps||30; this.step=1000/this.fps; this.acc=0; this.last=performance.now(); this.frame=0;
+    this.running=true; this.mini=!!opts.mini; this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.state={}; this.charMode='ascii'; this.params={zoom:1};
+    (sketch.sliders||[]).forEach(s=>this.params[s.id]=s.def);
+    if(sketch.setup) sketch.setup(this);
+    this._loop=this._loop.bind(this); this._raf=requestAnimationFrame(this._loop);
+  }
+  ramp(){ if(this.charMode==='blocky')return CHARSETS.blocky; if(this.charMode==='dots')return CHARSETS.dots; return CHARSETS.ascii; }
+  resize(cols,rows){ this.cols=cols; this.rows=rows; this.grid=new Grid(cols,rows); if(this.sketch.setup)this.sketch.setup(this); }
+  setMode(m){ this.charMode=m; } setParam(id,v){ this.params[id]=v; }
+  _loop(now){ if(this._dead)return; let dt=now-this.last; this.last=now; if(dt>250)dt=250; if(this.running)this.acc+=dt;
+    const fps=Math.round(1000/Math.max(dt,1));
+    while(this.acc>=this.step){ this.acc-=this.step; if(this.sketch.update)this.sketch.update(this); this.frame++; if(this.reduced)break; }
+    this.grid.clear(' '); if(this.sketch.draw)this.sketch.draw(this);
+    let html=this.grid.toHTML();
+    this.pre.innerHTML=html; this._raf=requestAnimationFrame(this._loop); }
+  destroy(){ this._dead=true; cancelAnimationFrame(this._raf); }
+}
+
+const COL3=(t)=> t>0.66?'var(--hud)' : t>0.33?'var(--ink)' : 'var(--dim,var(--ink))';
+
+/* ---- 01 GAME OF LIFE (CA). zoom = cell coarseness (downsample grid) ---- */
+const Life={ name:'Game of Life', cat:'cellular automata', fps:14,
+  sliders:[{id:'density',label:'seed',min:0.05,max:0.5,step:0.01,def:0.28},{id:'speed',label:'speed',min:4,max:30,step:1,def:14}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(8,Math.round(e.cols/z)),R:Math.max(6,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; const n=d.C*d.R; e.state.a=new Uint8Array(n); e.state.b=new Uint8Array(n); const dd=e.params.density; for(let i=0;i<n;i++)e.state.a[i]=Math.random()<dd?1:0; e.state.gen=0; e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const a=e.state.a,b=e.state.b,C=e.state.C,R=e.state.R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ let s=0; for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ if(!dx&&!dy)continue; s+=a[((y+dy+R)%R)*C+((x+dx+C)%C)]; } const i=y*C+x; b[i]=(a[i]&&(s===2||s===3))||(!a[i]&&s===3)?1:0; }
+    e.state.a=b; e.state.b=a; e.state.gen++; },
+  draw(e){ const a=e.state.a,C=e.state.C,R=e.state.R; const ramp=e.ramp(); const ch=ramp[ramp.length-1];
+    const sx=e.cols/C, sy=e.rows/R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(a[y*C+x]){ const px=Math.floor(x*sx),py=Math.floor(y*sy); for(let yy=0;yy<Math.ceil(sx);yy++)for(let xx=0;xx<Math.ceil(sx);xx++)e.grid.set(px+xx,py+yy,ch,'var(--ink)'); } },
+  hud(e){ let al=0; for(const v of e.state.a)al+=v; return "  CONWAY'S LIFE   gen:"+e.state.gen+"   alive:"+al+"   [space]pause [r]reseed"; },
+  icon:" #         #\n ##   ##    \n  ##  ##  ##\n##       ## \n # ##  #    \n   ##  ###  \n ##      #  \n  ## ###  ##\n##    #   # \n   ##   ##  " };
+
+/* ---- 02 FLOW FIELD (particles). 2 sliders; zoom = field scale ---- */
+const Flow={ name:'Flow Field', cat:'flow & particles', fps:30,
+  sliders:[{id:'count',label:'count',min:120,max:1200,step:20,def:500},{id:'speed',label:'speed',min:0.2,max:1.6,step:0.1,def:0.6}],
+  scale(e){ return 0.18/e.params.zoom; },
+  setup(e){ e.state.t=0; e.state.p=[]; this.reseed(e); },
+  reseed(e){ const N=e.params.count|0; e.state.p=[]; for(let i=0;i<N;i++)e.state.p.push({x:Math.random()*e.cols,y:Math.random()*e.rows}); },
+  field(x,y,t,sc){ return (Math.sin(x*sc+t)+Math.cos(y*(sc*1.2)-t*0.7)+Math.sin((x+y)*(sc*0.45)+t*0.4))*1.4; },
+  update(e){ if(e.state.p.length!==(e.params.count|0))this.reseed(e); e.state.t+=0.02; const t=e.state.t,sp=e.params.speed,sc=this.scale(e);
+    for(const p of e.state.p){ const a=this.field(p.x,p.y,t,sc); p.x+=Math.cos(a)*sp; p.y+=Math.sin(a)*sp; if(p.x<0)p.x+=e.cols; if(p.x>=e.cols)p.x-=e.cols; if(p.y<0)p.y+=e.rows; if(p.y>=e.rows)p.y-=e.rows; } },
+  draw(e){ const ramp=e.ramp(),sc=this.scale(e); for(const p of e.state.p){ const a=this.field(p.x,p.y,e.state.t,sc); const t=clamp((a+4)/8,0,1); const ch=shadeChar(ramp,t); e.grid.set(p.x,p.y,ch,COL3(t)); } },
+  hud(e,fps){ return "  FLOW FIELD   "+fps+" fps   particles:"+e.state.p.length+"   [space]pause [r]reseed"; },
+  icon:" ~--~,___   \n~~--~~,__~-~\n,~~--~~,_~~ \n~,,~~--~~,_ \n-~,,_~~--~~ \n~-~,,_~~--~ \n~~-~,,__~~--\n_~~-~,,___~~\n,_~~-~~,,___\n~,,_~~-~~,, " };
+
+/* ---- 03 ASCII DONUT (3d). zoom = overall size ---- */
+const Donut={ name:'Donut', cat:'3d in ascii', fps:30,
+  sliders:[{id:'spin',label:'spin',min:0.02,max:0.18,step:0.01,def:0.07},{id:'fatness',label:'girth',min:0.5,max:1.4,step:0.05,def:1.0}],
+  setup(e){ e.state.A=0; e.state.B=0; },
+  update(e){ e.state.A+=e.params.spin; e.state.B+=e.params.spin*0.45; },
+  draw(e){ const C=e.cols,R=e.rows; const zb=new Float32Array(C*R); const ramp=e.ramp(); const A=e.state.A,B=e.state.B;
+    const cA=Math.cos(A),sA=Math.sin(A),cB=Math.cos(B),sB=Math.sin(B); const r1=e.params.fatness,r2=2,K2=5; const K1=C*K2*3/(8*(r1+r2))*e.params.zoom*0.8;
+    for(let th=0;th<TAU;th+=0.07){ const ct=Math.cos(th),st=Math.sin(th);
+      for(let ph=0;ph<TAU;ph+=0.02){ const cp=Math.cos(ph),sp=Math.sin(ph); const cx=r2+r1*ct,cy=r1*st;
+        const x=cx*(cB*cp+sA*sB*sp)-cy*cA*sB; const y=cx*(sB*cp-sA*cB*sp)+cy*cA*cB; const z=K2+cA*cx*sp+cy*sA; const ooz=1/z;
+        const xp=(C/2+K1*ooz*x)|0,yp=(R/2-K1*ooz*y*0.5)|0;
+        const L=cp*ct*sB-cA*ct*sp-sA*st+cB*(cA*st-ct*sA*sp);
+        if(L>0&&xp>=0&&xp<C&&yp>=0&&yp<R){ const i=yp*C+xp; if(ooz>zb[i]){ zb[i]=ooz; const t=clamp(L*0.9,0,1); const ch=shadeChar(ramp,t); e.grid.set(xp,yp,ch,COL3(t)); } } } } },
+  hud(e,fps){ return "  DONUT   "+fps+" fps   z-buffered torus   [space]pause"; },
+  icon:"  .-==-. \n.='   '=.\n/  .-.  \\\n| | . | |\n| |   | |\n\\  '-'  /\n'=.   .='\n  '-==-' \n         " };
+
+/* ---- 04 RULE 30 (elementary CA, scrolling). zoom = cell size ---- */
+const Rule30={ name:'Rule 30', cat:'cellular automata', fps:24,
+  sliders:[{id:'rule',label:'rule',min:0,max:255,step:1,def:30},{id:'speed',label:'speed',min:4,max:40,step:1,def:24}],
+  setup(e){ const W=Math.max(8,Math.round(e.cols/e.params.zoom)); e.state.W=W; e.state.row=new Uint8Array(W); e.state.row[W>>1]=1; e.state.hist=[]; e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const W=e.state.W,r=e.state.row,rule=e.params.rule|0; const n=new Uint8Array(W);
+    for(let x=0;x<W;x++){ const l=r[(x-1+W)%W],c=r[x],ri=r[(x+1)%W]; const idx=(l<<2)|(c<<1)|ri; n[x]=(rule>>idx)&1; }
+    e.state.row=n; e.state.hist.push(n); const maxH=Math.ceil(e.rows/(e.cols/W)); if(e.state.hist.length>e.rows+2)e.state.hist.shift(); },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const W=e.state.W; const sx=e.cols/W; const H=e.state.hist;
+    const start=Math.max(0,H.length-e.rows);
+    for(let y=0;y<e.rows && start+y<H.length;y++){ const row=H[start+y]; for(let x=0;x<W;x++) if(row[x]){ const px=Math.floor(x*sx); for(let xx=0;xx<Math.ceil(sx);xx++)e.grid.set(px+xx,y,ch,'var(--ink)'); } } },
+  hud(e){ return "  ELEMENTARY CA   rule:"+(e.params.rule|0)+"   [space]pause [r]reset"; },
+  icon:"      #     \n     ###    \n    ##  #   \n   ## ####  \n  ##  #   # \n ## #### ###\n##  #    #  \n# #### ###  \n   #    #  #" };
+
+/* ---- 05 BRIAN'S BRAIN (3-state CA). zoom = cell coarseness ---- */
+const Brain={ name:"Brian's Brain", cat:'cellular automata', fps:18,
+  sliders:[{id:'density',label:'seed',min:0.05,max:0.5,step:0.01,def:0.22},{id:'speed',label:'speed',min:4,max:30,step:1,def:18}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(8,Math.round(e.cols/z)),R:Math.max(6,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; const n=d.C*d.R; e.state.a=new Uint8Array(n); const dd=e.params.density; for(let i=0;i<n;i++)e.state.a[i]=Math.random()<dd?1:0; e.state.b=new Uint8Array(n); e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const a=e.state.a,b=e.state.b,C=e.state.C,R=e.state.R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const i=y*C+x; const v=a[i];
+      if(v===1){ b[i]=2; } else if(v===2){ b[i]=0; } else { let s=0; for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ if(!dx&&!dy)continue; if(a[((y+dy+R)%R)*C+((x+dx+C)%C)]===1)s++; } b[i]=(s===2)?1:0; } }
+    e.state.a=b.slice(); },
+  draw(e){ const a=e.state.a,C=e.state.C,R=e.state.R; const ramp=e.ramp(); const on=ramp[ramp.length-1],dy_=ramp[Math.floor(ramp.length/2)]; const sx=e.cols/C,sy=e.rows/R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const v=a[y*C+x]; if(!v)continue; const px=Math.floor(x*sx),py=Math.floor(y*sy); const ch=v===1?on:dy_; const col=v===1?'var(--hud)':'var(--dim,var(--ink))'; for(let q=0;q<Math.ceil(sx);q++)e.grid.set(px+q,py,ch,col); } },
+  hud(e){ return "  BRIAN'S BRAIN   3-state CA   [space]pause [r]reseed"; },
+  icon:" #   o   #  \n   #   o    \n o   # #   o\n   o   #    \n#   #   o  #\n  o   #   o \n #   o #    \n   #   o   #\n o # #   o  " };
+
+/* ---- 06 BOIDS (flocking). zoom = view scale (boid count fixed by slider) ---- */
+const Boids={ name:'Boids', cat:'flocking', fps:30,
+  sliders:[{id:'count',label:'flock',min:30,max:240,step:10,def:120},{id:'cohesion',label:'cohere',min:0,max:2,step:0.1,def:1}],
+  setup(e){ e.state.b=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.b.push({x:Math.random()*e.cols,y:Math.random()*e.rows,vx:(Math.random()-0.5),vy:(Math.random()-0.5)}); },
+  update(e){ const B=e.state.b; if(B.length!==(e.params.count|0))this.setup(e); const C=e.cols,R=e.rows; const coh=e.params.cohesion; const per=6/e.params.zoom;
+    for(const b of B){ let ax=0,ay=0,cx=0,cy=0,sx=0,sy=0,n=0;
+      for(const o of B){ if(o===b)continue; const dx=o.x-b.x,dy=o.y-b.y,d2=dx*dx+dy*dy; if(d2<per*per){ ax+=o.vx; ay+=o.vy; cx+=o.x; cy+=o.y; if(d2<4){ sx-=dx; sy-=dy; } n++; } }
+      if(n){ ax/=n;ay/=n;cx/=n;cy/=n; b.vx+=(ax-b.vx)*0.05 + (cx-b.x)*0.001*coh + sx*0.02; b.vy+=(ay-b.vy)*0.05 + (cy-b.y)*0.001*coh + sy*0.02; }
+      const sp=Math.hypot(b.vx,b.vy)||1; const mx=1.1; if(sp>mx){ b.vx=b.vx/sp*mx; b.vy=b.vy/sp*mx; }
+      b.x+=b.vx; b.y+=b.vy; if(b.x<0)b.x+=C; if(b.x>=C)b.x-=C; if(b.y<0)b.y+=R; if(b.y>=R)b.y-=R; } },
+  draw(e){ const ramp=e.ramp(); const arrows=['>','^','<','v']; const on=ramp[ramp.length-1]; for(const b of e.state.b){ const ang=Math.atan2(b.vy,b.vx); const qi=((Math.round(ang/(Math.PI/2))%4)+4)%4; const ch=e.charMode==='ascii'?arrows[qi]:on; e.grid.set(b.x,b.y,ch,'var(--ink)'); } },
+  hud(e,fps){ return "  BOIDS   "+fps+" fps   flock:"+e.state.b.length+"   [space]pause [r]reseed"; },
+  icon:"      >     \n    >  >    \n  >   >  >  \n >  >   >   \n>   >  >  > \n >  >   >   \n  >   >  >  \n    >  >    \n      >     " };
+
+/* ---- 07 RAIN (particles). zoom = drop size/length ---- */
+const Rain={ name:'Matrix Rain', cat:'flow & particles', fps:24,
+  sliders:[{id:'density',label:'streams',min:0.1,max:1,step:0.05,def:0.5},{id:'speed',label:'speed',min:0.3,max:2,step:0.1,def:1}],
+  setup(e){ const C=e.cols; e.state.drops=[]; const dens=e.params.density; for(let x=0;x<C;x++){ if(Math.random()<dens) e.state.drops.push({x,y:Math.random()*e.rows,len:3+Math.random()*10*e.params.zoom,sp:0.3+Math.random()}); } e.state.dens=dens; },
+  update(e){ if(Math.abs(e.params.density-e.state.dens)>0.001)this.setup(e); const sp=e.params.speed; for(const d of e.state.drops){ d.y+=d.sp*sp; if(d.y-d.len>e.rows){ d.y=-Math.random()*8; d.x=Math.floor(Math.random()*e.cols); d.len=3+Math.random()*10*e.params.zoom; } } },
+  draw(e){ const ramp=e.ramp(); const glyphs="abcdefghijklmnopqrstuvwxyz0123456789@#$%&"; for(const d of e.state.drops){ for(let i=0;i<d.len;i++){ const y=Math.floor(d.y-i); if(y<0||y>=e.rows)continue; const t=1-i/d.len; const ch=e.charMode==='ascii'?glyphs[(Math.floor(d.x+y+e.frame)*7)%glyphs.length]:shadeChar(ramp,t); const col=i===0?'var(--hud)':t>0.5?'var(--ink)':'var(--dim,var(--ink))'; e.grid.set(d.x,y,ch,col); } } },
+  hud(e,fps){ return "  MATRIX RAIN   "+fps+" fps   streams:"+e.state.drops.length+"   [space]pause [r]reseed"; },
+  icon:"| # |   # | \n@ | $ | | @ \n# @ | # @ | \n| | # | | # \n$ | @ | # | \n| # | @ | @ \n# | | # | | \n| @ # | $ # \n  | | @ | | " };
+
+/* ---- 08 PLASMA (noise field). zoom = feature scale ---- */
+const Plasma={ name:'Plasma', cat:'noise & fields', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'warp',label:'warp',min:0,max:3,step:0.1,def:1.2}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.04*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const sc=0.12/e.params.zoom; const wp=e.params.warp;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const v=Math.sin(x*sc+t)+Math.sin(y*sc*1.3+t*1.1)+Math.sin((x+y)*sc*0.7+t)+wp*Math.sin(Math.hypot(x-e.cols/2,y-e.rows/2)*sc+t); const tt=clamp((v+2+wp)/(4+2*wp),0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  hud(e,fps){ return "  PLASMA   "+fps+" fps   trig interference   [space]pause"; },
+  icon:":~=*#*=~:~=*\n~=*#*=~:~=*#\n=*#*=~:~=*#*\n*#*=~:~=*#*=\n#*=~:~=*#*=~\n*=~:~=*#*=~:\n=~:~=*#*=~:~\n~:~=*#*=~:~=\n:~=*#*=~:~=*" };
+
+/* ---- 09 MANDELBROT (fractal). zoom = magnification ---- */
+const Mandel={ name:'Mandelbrot', cat:'fractals', fps:20,
+  sliders:[{id:'detail',label:'detail',min:30,max:160,step:5,def:80},{id:'rate',label:'dive',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.zoom=0.6; e.state.tx=-0.745; e.state.ty=0.113; },   // seahorse valley
+  update(e){ e.state.zoom*=(1+0.012*e.params.rate); if(e.state.zoom>9000)e.state.zoom=0.6; },   // loop out before float breaks
+  draw(e){ const ramp=e.ramp(); const z=e.state.zoom*e.params.zoom; const maxI=(e.params.detail|0)+Math.floor(Math.log2(z+1)*18);
+    const spanX=3.0/z; const spanY=spanX*(e.rows/e.cols)*2.0; const cx0=e.state.tx, cy0=e.state.ty;
+    for(let py=0;py<e.rows;py++)for(let px=0;px<e.cols;px++){ const x0=cx0+(px/e.cols-0.5)*spanX; const y0=cy0+(py/e.rows-0.5)*spanY; let x=0,y=0,i=0; while(x*x+y*y<=4&&i<maxI){ const xt=x*x-y*y+x0; y=2*x*y+y0; x=xt; i++; } if(i<maxI){ const t=(i/maxI*3)%1; const ch=shadeChar(ramp,t); if(ch!==' ')e.grid.set(px,py,ch,COL3(t)); } } },
+  hud(e){ return "  MANDELBROT   infinite zoom   seahorse valley   [space]pause"; },
+  icon:"    ..--..  \n   .######. \n  .########.\n .##########\n###########.\n .##########\n  .########.\n   .######. \n    ..--..  " };
+
+/* ---- 10 STARFIELD (3d-ish). zoom = star spread / speed feel ---- */
+const Stars={ name:'Starfield', cat:'3d in ascii', fps:30,
+  sliders:[{id:'count',label:'stars',min:80,max:600,step:20,def:260},{id:'speed',label:'warp',min:0.2,max:3,step:0.1,def:1}],
+  setup(e){ e.state.s=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.s.push(this.spawn(e)); },
+  spawn(e){ return {x:(Math.random()-0.5)*e.cols, y:(Math.random()-0.5)*e.rows, z:Math.random()*e.cols}; },
+  update(e){ const S=e.state.s; if(S.length!==(e.params.count|0))this.setup(e); const sp=e.params.speed; for(const s of S){ s.z-=sp*2; if(s.z<=1){ Object.assign(s,this.spawn(e)); s.z=e.cols; } } },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const f=e.cols*0.6*e.params.zoom; for(const s of e.state.s){ const px=Math.round(cx+s.x/s.z*f); const py=Math.round(cy+s.y/s.z*f*0.5); if(px<0||px>=e.cols||py<0||py>=e.rows)continue; const t=clamp(1-s.z/e.cols,0,1); const ch=shadeChar(ramp,t); e.grid.set(px,py,ch,COL3(t)); } },
+  hud(e,fps){ return "  STARFIELD   "+fps+" fps   stars:"+e.state.s.length+"   [space]pause"; },
+  icon:" .    *    .\n   .  *  .  \n*    .*.    *\n   .*###*.  \n*--*##@##*--*\n   .*###*.  \n*    .*.    *\n   .  *  .  \n .    *    ." };
+
+
+/* ===== 11-30 : all self-animating ===== */
+
+/* 11 JULIA — morphing seed orbit */
+const Julia={ name:'Julia Set', cat:'fractals', fps:24,
+  sliders:[{id:'detail',label:'detail',min:30,max:140,step:5,def:70},{id:'morph',label:'morph',min:0.1,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.012*e.params.morph; },
+  draw(e){ const ramp=e.ramp(); const maxI=e.params.detail|0; const t=e.state.t; const cr=0.7885*Math.cos(t), ci=0.7885*Math.sin(t); const z=e.params.zoom;
+    const spanX=3.2/z, spanY=spanX*(e.rows/e.cols)*2.0;
+    for(let py=0;py<e.rows;py++)for(let px=0;px<e.cols;px++){ let x=(px/e.cols-0.5)*spanX, y=(py/e.rows-0.5)*spanY; let i=0; while(x*x+y*y<=4&&i<maxI){ const xt=x*x-y*y+cr; y=2*x*y+ci; x=xt; i++; } if(i<maxI){ const tt=(i/maxI*3)%1; const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(px,py,ch,COL3(tt)); } } },
+  hud(e,fps){ return "  JULIA SET   "+fps+" fps   morphing seed   [space]pause"; },
+  icon:"  .  ..   .\n .##.  .##.\n.####..####\n .##.##.##.\n   ####    \n .##.##.##.\n.####..####\n .##.  .##.\n.  ..   .  " };
+
+/* 12 BURNING SHIP — slow zoom */
+const Ship={ name:'Burning Ship', cat:'fractals', fps:18,
+  sliders:[{id:'detail',label:'detail',min:30,max:140,step:5,def:80},{id:'rate',label:'dive',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.zoom=0.5; e.state.tx=-1.755; e.state.ty=-0.03; },
+  update(e){ e.state.zoom*=(1+0.01*e.params.rate); if(e.state.zoom>4000)e.state.zoom=0.5; },
+  draw(e){ const ramp=e.ramp(); const z=e.state.zoom*e.params.zoom; const maxI=(e.params.detail|0)+Math.floor(Math.log2(z+1)*16);
+    const spanX=2.6/z, spanY=spanX*(e.rows/e.cols)*2.0;
+    for(let py=0;py<e.rows;py++)for(let px=0;px<e.cols;px++){ const x0=e.state.tx+(px/e.cols-0.5)*spanX, y0=e.state.ty+(py/e.rows-0.5)*spanY; let x=0,y=0,i=0; while(x*x+y*y<=4&&i<maxI){ const xt=x*x-y*y+x0; y=Math.abs(2*x*y)+y0; x=Math.abs(xt); i++; } if(i<maxI){ const t=(i/maxI*3)%1; const ch=shadeChar(ramp,t); if(ch!==' ')e.grid.set(px,py,ch,COL3(t)); } } },
+  hud(e){ return "  BURNING SHIP   infinite zoom   [space]pause"; },
+  icon:"          .\n  .    .###\n .##. .####\n.####.#####\n###########\n.####.#####\n .##. .####\n  .    .###\n          ." };
+
+/* 13 PERLIN FLOW — drifting noise contours */
+const Perlin={ name:'Perlin Flow', cat:'noise & fields', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'octaves',label:'detail',min:1,max:4,step:1,def:2}],
+  noise(x,y,t){ let v=0,a=1,f=1; for(let o=0;o<this._oct;o++){ v+=a*Math.sin(x*0.12*f+t)*Math.cos(y*0.12*f-t*0.8); a*=0.5; f*=2; } return v; },
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02*e.params.speed; this._oct=e.params.octaves|0; },
+  draw(e){ const ramp=e.ramp(); this._oct=e.params.octaves|0; const sc=1/e.params.zoom;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const v=this.noise(x*sc,y*sc,e.state.t); const t=clamp((v+1.5)/3,0,1); const ch=shadeChar(ramp,t); if(ch!==' ')e.grid.set(x,y,ch,COL3(t)); } },
+  hud(e,fps){ return "  PERLIN FLOW   "+fps+" fps   layered noise   [space]pause"; },
+  icon:"~~--~~,_~~,\n--~~,__~~--~\n~,__~~--~~,_\n,__~~--~~,__\n_~~--~~,__~~\n~--~~,__~~--\n--~~,__~~--~\n~~,__~~--~~,\n,__~~--~~,__" };
+
+/* 14 WORLEY — cellular noise, drifting points */
+const Worley={ name:'Worley Noise', cat:'noise & fields', fps:24,
+  sliders:[{id:'points',label:'cells',min:4,max:24,step:1,def:10},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.6}],
+  setup(e){ e.state.pts=[]; const N=e.params.points|0; for(let i=0;i<N;i++)e.state.pts.push({x:Math.random()*e.cols,y:Math.random()*e.rows,vx:(Math.random()-0.5),vy:(Math.random()-0.5)}); },
+  update(e){ if(e.state.pts.length!==(e.params.points|0))this.setup(e); const sp=e.params.speed; for(const p of e.state.pts){ p.x+=p.vx*sp; p.y+=p.vy*sp; if(p.x<0||p.x>=e.cols)p.vx*=-1; if(p.y<0||p.y>=e.rows)p.vy*=-1; } },
+  draw(e){ const ramp=e.ramp(); const sc=e.params.zoom; for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let d=1e9; for(const p of e.state.pts){ const dx=x-p.x,dy=(y-p.y)*2; const dd=dx*dx+dy*dy; if(dd<d)d=dd; } const t=clamp(Math.sqrt(d)/(18*sc),0,1); const ch=shadeChar(ramp,1-t); if(ch!==' ')e.grid.set(x,y,ch,COL3(1-t)); } },
+  hud(e,fps){ return "  WORLEY NOISE   "+fps+" fps   nearest-point   [space]pause"; },
+  icon:"###..::..##\n##..::::..#\n#..::##::..\n..::####::.\n.::##@@##::\n..::####::.\n#..::##::..\n##..::::..#\n###..::..##" };
+
+/* 15 RIPPLE — radial wave interference */
+const Ripple={ name:'Ripples', cat:'noise & fields', fps:30,
+  sliders:[{id:'sources',label:'drops',min:1,max:5,step:1,def:3},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; e.state.src=[]; const N=e.params.sources|0; for(let i=0;i<N;i++)e.state.src.push({x:Math.random()*e.cols,y:Math.random()*e.rows,ph:Math.random()*TAU}); },
+  update(e){ if(e.state.src.length!==(e.params.sources|0))this.setup(e); e.state.t+=0.15*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const sc=0.6/e.params.zoom; for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let v=0; for(const s of e.state.src){ const d=Math.hypot(x-s.x,(y-s.y)*2); v+=Math.sin(d*sc-e.state.t+s.ph); } const t=clamp((v/e.state.src.length+1)/2,0,1); const ch=shadeChar(ramp,t); if(ch!==' ')e.grid.set(x,y,ch,COL3(t)); } },
+  hud(e,fps){ return "  RIPPLES   "+fps+" fps   wave interference   [space]pause"; },
+  icon:":~=*#*=~:~\n~=*#  #*=~:\n=*#  ..  #*\n*#  .::.  #\n#  .:##:.  \n*#  .::.  #\n=*#  ..  #*\n~=*#  #*=~:\n:~=*#*=~:~=" };
+
+/* 16 WIREWORLD — electron heads/tails (auto-seeded oscillator) */
+const Wire={ name:'Wireworld', cat:'cellular automata', fps:12,
+  sliders:[{id:'speed',label:'speed',min:2,max:24,step:1,def:10},{id:'density',label:'wire',min:0.2,max:0.7,step:0.05,def:0.45}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(10,Math.round(e.cols/z)),R:Math.max(8,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; const n=d.C*d.R; e.state.g=new Uint8Array(n); // 0 empty,1 wire,2 head,3 tail
+    const dd=e.params.density; for(let i=0;i<n;i++)e.state.g[i]=Math.random()<dd?1:0; // sprinkle some heads
+    for(let i=0;i<n;i++)if(e.state.g[i]===1&&Math.random()<0.04)e.state.g[i]=2; e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const g=e.state.g,C=e.state.C,R=e.state.R; const n=new Uint8Array(g.length);
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const i=y*C+x; const v=g[i];
+      if(v===0){ n[i]=0; } else if(v===2){ n[i]=3; } else if(v===3){ n[i]=1; } else { let h=0; for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ if(!dx&&!dy)continue; if(g[((y+dy+R)%R)*C+((x+dx+C)%C)]===2)h++; } n[i]=(h===1||h===2)?2:1; } }
+    e.state.g=n; },
+  draw(e){ const g=e.state.g,C=e.state.C,R=e.state.R; const sx=e.cols/C,sy=e.rows/R; const ramp=e.ramp(); const wch=ramp[Math.max(1,Math.floor(ramp.length*0.3))], hch=ramp[ramp.length-1];
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const v=g[y*C+x]; if(!v)continue; const px=Math.floor(x*sx),py=Math.floor(y*sy); const ch=v===1?wch:hch; const col=v===2?'var(--hud)':v===3?'var(--dim,var(--ink))':'var(--ink)'; e.grid.set(px,py,ch,col); } },
+  hud(e){ return "  WIREWORLD   electron automaton   [space]pause [r]reseed"; },
+  icon:".:.:.:.:.:\n:#:#:#:#:#:\n.@.@.@.@.@.\n:#:#:#:#:#:\n.:.:.:.:.:.\n:#:#:#:#:#:\n.@.@.@.@.@.\n:#:#:#:#:#:\n.:.:.:.:.:." };
+
+/* 17 CYCLIC CA — rock-paper-scissors spirals */
+const Cyclic={ name:'Cyclic CA', cat:'cellular automata', fps:20,
+  sliders:[{id:'states',label:'states',min:3,max:8,step:1,def:5},{id:'speed',label:'speed',min:4,max:30,step:1,def:18}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(10,Math.round(e.cols/z)),R:Math.max(8,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; const n=d.C*d.R; const S=e.params.states|0; e.state.g=new Uint8Array(n); for(let i=0;i<n;i++)e.state.g[i]=Math.floor(Math.random()*S); e.state.S=S; e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z||(e.params.states|0)!==e.state.S)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const g=e.state.g,C=e.state.C,R=e.state.R,S=e.state.S; const n=new Uint8Array(g.length);
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const i=y*C+x; const next=(g[i]+1)%S; let win=false;
+      for(let d=0;d<4&&!win;d++){ const nx=[1,-1,0,0][d],ny=[0,0,1,-1][d]; if(g[((y+ny+R)%R)*C+((x+nx+C)%C)]===next)win=true; }
+      n[i]=win?next:g[i]; }
+    e.state.g=n; },
+  draw(e){ const g=e.state.g,C=e.state.C,R=e.state.R,S=e.state.S; const sx=e.cols/C,sy=e.rows/R; const ramp=e.ramp();
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const v=g[y*C+x]; const t=v/(S-1); const ch=shadeChar(ramp,t); const px=Math.floor(x*sx),py=Math.floor(y*sy); if(ch!==' ')e.grid.set(px,py,ch,COL3(t)); } },
+  hud(e){ return "  CYCLIC CA   rock-paper-scissors spirals   [space]pause"; },
+  icon:"=*#*=:.:=*\n*#*=:.:=*#*\n#*=:.:=*#*=\n*=:.:=*#*=:\n=:.:=*#*=:.\n:.:=*#*=:.:\n.:=*#*=:.:=\n:=*#*=:.:=*\n=*#*=:.:=*#" };
+
+/* 18 LANGTON'S ANT — wandering trail */
+const Ant={ name:"Langton's Ant", cat:'cellular automata', fps:60,
+  sliders:[{id:'ants',label:'ants',min:1,max:6,step:1,def:1},{id:'speed',label:'steps',min:1,max:30,step:1,def:8}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(12,Math.round(e.cols/z)),R:Math.max(10,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; e.state.g=new Uint8Array(d.C*d.R); e.state.ants=[]; const N=e.params.ants|0; for(let i=0;i<N;i++)e.state.ants.push({x:d.C>>1,y:d.R>>1,dir:Math.floor(Math.random()*4)}); e.state.z=e.params.zoom; e.state.an=N; },
+  update(e){ if(e.params.zoom!==e.state.z||(e.params.ants|0)!==e.state.an)this.setup(e); const g=e.state.g,C=e.state.C,R=e.state.R; const steps=e.params.speed|0;
+    for(let s=0;s<steps;s++)for(const a of e.state.ants){ const i=a.y*C+a.x; if(g[i]){ a.dir=(a.dir+3)%4; g[i]=0; } else { a.dir=(a.dir+1)%4; g[i]=1; } const dx=[0,1,0,-1][a.dir],dy=[-1,0,1,0][a.dir]; a.x=(a.x+dx+C)%C; a.y=(a.y+dy+R)%R; } },
+  draw(e){ const g=e.state.g,C=e.state.C,R=e.state.R; const sx=e.cols/C,sy=e.rows/R; const ramp=e.ramp(); const ch=ramp[ramp.length-1];
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(g[y*C+x]){ const px=Math.floor(x*sx),py=Math.floor(y*sy); e.grid.set(px,py,ch,'var(--ink)'); }
+    for(const a of e.state.ants){ e.grid.set(Math.floor(a.x*sx),Math.floor(a.y*sy),e.charMode==='ascii'?'@':ch,'var(--hud)'); } },
+  hud(e){ return "  LANGTON'S ANT   emergent highway   [space]pause [r]reset"; },
+  icon:"   #####  \n  #     # \n  # ### # \n  # #@# # \n  # # # # \n  # ### # \n  #     # \n  #######.\n .........." };
+
+/* 19 FALLING SAND — continuous pour */
+const Sand={ name:'Falling Sand', cat:'cellular automata', fps:40,
+  sliders:[{id:'pour',label:'pour',min:1,max:8,step:1,def:3},{id:'speed',label:'speed',min:10,max:60,step:5,def:40}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(16,Math.round(e.cols/z)),R:Math.max(12,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; e.state.g=new Uint8Array(d.C*d.R); e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const g=e.state.g,C=e.state.C,R=e.state.R;
+    // pour across the full width so the page fills edge to edge
+    for(let p=0;p<(e.params.pour|0)+2;p++){ const x=Math.floor(Math.random()*C); if(!g[x])g[x]=1; }
+    for(let y=R-2;y>=0;y--)for(let x=0;x<C;x++){ const i=y*C+x; if(!g[i])continue; const below=(y+1)*C+x; if(!g[below]){ g[below]=1; g[i]=0; } else { const dl=(y+1)*C+(x-1),dr=(y+1)*C+(x+1); const goL=x>0&&!g[dl], goR=x<C-1&&!g[dr]; if(goL&&goR){ if(Math.random()<0.5){g[dl]=1;}else{g[dr]=1;} g[i]=0; } else if(goL){ g[dl]=1; g[i]=0; } else if(goR){ g[dr]=1; g[i]=0; } } }
+    // reset only once it's mostly full (top row starting to clog), so it fills before clearing
+    let topRow=0; for(let x=0;x<C;x++)if(g[x])topRow++; if(topRow>C*0.6)e.state.g=new Uint8Array(C*R); },
+  draw(e){ const g=e.state.g,C=e.state.C,R=e.state.R; const sx=e.cols/C,sy=e.rows/R; const ramp=e.ramp();
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(g[y*C+x]){ const t=y/R; const ch=shadeChar(ramp,0.4+t*0.6); const px=Math.floor(x*sx),py=Math.floor(y*sy); e.grid.set(px,py,ch,COL3(0.4+t*0.5)); } },
+  hud(e){ return "  FALLING SAND   granular flow   [space]pause"; },
+  icon:"    ..    \n   .::.   \n  .:##:.  \n .:####:. \n.:######:.\n:########:\n##########\n##########\n##########" };
+
+/* 20 LORENZ — strange attractor traced */
+const Lorenz={ name:'Lorenz Attractor', cat:'physics', fps:60,
+  sliders:[{id:'speed',label:'speed',min:1,max:12,step:1,def:5},{id:'trail',label:'trail',min:100,max:1200,step:50,def:600}],
+  setup(e){ e.state.x=0.1; e.state.y=0; e.state.z=0; e.state.pts=[]; e.state.rot=0; },
+  update(e){ e.state.rot+=0.004; const dt=0.008; for(let s=0;s<(e.params.speed|0);s++){ const {x,y,z}=e.state; const dx=10*(y-x),dy=x*(28-z)-y,dz=x*y-(8/3)*z; e.state.x+=dx*dt; e.state.y+=dy*dt; e.state.z+=dz*dt; e.state.pts.push([e.state.x,e.state.y,e.state.z]); } while(e.state.pts.length>e.params.trail)e.state.pts.shift(); },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=(Math.min(e.cols,e.rows*2)/60)*e.params.zoom; const cr=Math.cos(e.state.rot),sr=Math.sin(e.state.rot); const P=e.state.pts;
+    for(let i=0;i<P.length;i++){ const [x,y,z]=P[i]; const rx=x*cr-y*sr; const px=Math.round(cx+rx*sc); const py=Math.round(cy+(z-25)*sc*0.5); const t=i/P.length; const ch=shadeChar(ramp,t); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,ch,COL3(t)); } },
+  hud(e,fps){ return "  LORENZ   "+fps+" fps   strange attractor   [space]pause"; },
+  icon:"   .-~~-. \n  /     .'\n .'   .'  \n |   /    \n  \\  \\.   \n   '. '~-.\n  .-'~   '\n /   .--. \n'.__/    '" };
+
+/* 21 DOUBLE PENDULUM — chaotic swing with trail */
+const Pendulum={ name:'Double Pendulum', cat:'physics', fps:60,
+  sliders:[{id:'gravity',label:'gravity',min:0.2,max:2,step:0.1,def:1},{id:'trail',label:'trail',min:20,max:300,step:10,def:120}],
+  setup(e){ e.state.a1=Math.PI*0.9; e.state.a2=Math.PI*0.9; e.state.v1=0; e.state.v2=0; e.state.tr=[]; },
+  update(e){ const g=e.params.gravity*0.4,m1=1,m2=1,L1=1,L2=1; for(let s=0;s<2;s++){ const {a1,a2,v1,v2}=e.state;
+    const n1=-g*(2*m1+m2)*Math.sin(a1)-m2*g*Math.sin(a1-2*a2)-2*Math.sin(a1-a2)*m2*(v2*v2*L2+v1*v1*L1*Math.cos(a1-a2));
+    const d1=L1*(2*m1+m2-m2*Math.cos(2*a1-2*a2)); const ac1=n1/d1;
+    const n2=2*Math.sin(a1-a2)*(v1*v1*L1*(m1+m2)+g*(m1+m2)*Math.cos(a1)+v2*v2*L2*m2*Math.cos(a1-a2)); const d2=L2*(2*m1+m2-m2*Math.cos(2*a1-2*a2)); const ac2=n2/d2;
+    e.state.v1+=ac1*0.04; e.state.v2+=ac2*0.04; e.state.a1+=e.state.v1*0.04; e.state.a2+=e.state.v2*0.04; }
+    const L=Math.min(e.cols,e.rows*2)*0.22*e.params.zoom; const cx=e.cols/2,cy=e.rows/2.6; const x1=cx+L*Math.sin(e.state.a1),y1=cy+L*Math.cos(e.state.a1)*0.5; const x2=x1+L*Math.sin(e.state.a2),y2=y1+L*Math.cos(e.state.a2)*0.5; e.state.tr.push([x2,y2]); while(e.state.tr.length>e.params.trail)e.state.tr.shift(); e.state._p={cx,cy,x1,y1,x2,y2}; },
+  draw(e){ const ramp=e.ramp(); const p=e.state._p; if(!p)return; const line=(x0,y0,x1,y1,ch,col)=>{ const st=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))|0; for(let i=0;i<=st;i++){ const x=x0+(x1-x0)*i/st,y=y0+(y1-y0)*i/st; e.grid.set(x,y,ch,col); } };
+    for(let i=0;i<e.state.tr.length;i++){ const [x,y]=e.state.tr[i]; const t=i/e.state.tr.length; e.grid.set(x,y,shadeChar(ramp,t),COL3(t)); }
+    line(p.cx,p.cy,p.x1,p.y1,ramp[ramp.length-1],'var(--ink)'); line(p.x1,p.y1,p.x2,p.y2,ramp[ramp.length-1],'var(--ink)'); e.grid.set(p.x2,p.y2,e.charMode==='ascii'?'@':shadeChar(ramp,1),'var(--hud)'); },
+  hud(e,fps){ return "  DOUBLE PENDULUM   "+fps+" fps   chaos   [space]pause [r]reset"; },
+  icon:"    o     \n    |     \n    |     \n     \\    \n      o   \n      |   \n      \\   \n   .-. \\  \n  '   '@  " };
+
+/* 22 WAVE — 1D string standing/traveling waves */
+const Wave={ name:'Wave Field', cat:'physics', fps:30,
+  sliders:[{id:'modes',label:'modes',min:1,max:6,step:1,def:3},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.08*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const modes=e.params.modes|0; const amp=(e.rows/3)/e.params.zoom; const mid=e.rows/2;
+    for(let x=0;x<e.cols;x++){ let y=0; for(let m=1;m<=modes;m++)y+=Math.sin(x/e.cols*Math.PI*m+e.state.t*m*0.5)/m; const py=Math.round(mid+y*amp); for(let yy=Math.min(py,mid|0);yy<=Math.max(py,mid|0);yy++){ const t=1-Math.abs(yy-mid)/amp; e.grid.set(x,yy,shadeChar(ramp,clamp(t,0,1)),COL3(clamp(t,0,1))); } } },
+  hud(e,fps){ return "  WAVE FIELD   "+fps+" fps   superposition   [space]pause"; },
+  icon:"    ..    \n  .:##:.  \n .:#  #:. \n.:#    #:.\n#        #\n.:#    #:.\n .:#  #:. \n  .:##:.  \n    ..    " };
+
+/* 23 BOUNCE — gravity balls in a box */
+const Bounce={ name:'Bouncing Balls', cat:'physics', fps:60,
+  sliders:[{id:'count',label:'balls',min:3,max:30,step:1,def:12},{id:'gravity',label:'gravity',min:0,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.b=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.b.push({x:Math.random()*e.cols,y:Math.random()*e.rows*0.5,vx:(Math.random()-0.5)*1.5,vy:0}); },
+  update(e){ if(e.state.b.length!==(e.params.count|0))this.setup(e); const g=e.params.gravity*0.06; for(const b of e.state.b){ b.vy+=g; b.x+=b.vx; b.y+=b.vy; if(b.x<0){b.x=0;b.vx*=-0.9;} if(b.x>=e.cols-1){b.x=e.cols-1;b.vx*=-0.9;} if(b.y>=e.rows-1){b.y=e.rows-1;b.vy*=-0.82; b.vx*=0.98;} if(b.y<0){b.y=0;b.vy*=-0.9;} } },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const ball=e.charMode==='ascii'?'@':ch; const r=e.params.zoom; for(const b of e.state.b){ e.grid.set(b.x,b.y,ball,'var(--hud)'); if(r>1.2){ e.grid.set(b.x-1,b.y,ch,'var(--ink)'); e.grid.set(b.x+1,b.y,ch,'var(--ink)'); } } },
+  hud(e,fps){ return "  BOUNCING BALLS   "+fps+" fps   elastic   [space]pause [r]reset"; },
+  icon:" @    @   \n    @     \n  @    @  \n@      @ @\n   @  @   \n @  @   @ \n@   @  @  \n__________\n          " };
+
+/* 24 FIREWORKS — auto-launching bursts */
+const Fireworks={ name:'Fireworks', cat:'flow & particles', fps:40,
+  sliders:[{id:'rate',label:'rate',min:0.2,max:3,step:0.1,def:1},{id:'spread',label:'spread',min:0.5,max:2.5,step:0.1,def:1.3}],
+  setup(e){ e.state.p=[]; e.state.cool=0; },
+  update(e){ e.state.cool-=e.params.rate; if(e.state.cool<=0){ e.state.cool=20; const cx=e.cols*(0.2+Math.random()*0.6),cy=e.rows*(0.2+Math.random()*0.4); const n=20+Math.random()*30; for(let i=0;i<n;i++){ const a=Math.random()*TAU,sp=(0.4+Math.random())*e.params.spread; e.state.p.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*0.5,life:1}); } }
+    for(const p of e.state.p){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.03; p.vx*=0.97; p.life-=0.018; } e.state.p=e.state.p.filter(p=>p.life>0); },
+  draw(e){ const ramp=e.ramp(); for(const p of e.state.p){ const ch=shadeChar(ramp,p.life); const col=p.life>0.6?'var(--hud)':p.life>0.3?'var(--ink)':'var(--dim,var(--ink))'; e.grid.set(p.x,p.y,ch,col); } },
+  hud(e,fps){ return "  FIREWORKS   "+fps+" fps   particles:"+e.state.p.length+"   [space]pause"; },
+  icon:"  . * .   \n .  *  .  \n* . @ . * \n .  *  .  \n  . * .   \n    .   * \n  *   .   \n .    *   \n   .  .   " };
+
+/* 25 FOUNTAIN — upward particle jet */
+const Fountain={ name:'Fountain', cat:'flow & particles', fps:40,
+  sliders:[{id:'rate',label:'flow',min:1,max:12,step:1,def:5},{id:'force',label:'force',min:0.5,max:2,step:0.1,def:1.2}],
+  setup(e){ e.state.p=[]; },
+  update(e){ for(let i=0;i<(e.params.rate|0);i++){ e.state.p.push({x:e.cols/2+(Math.random()-0.5)*2,y:e.rows-1,vx:(Math.random()-0.5)*1.2,vy:-(1+Math.random())*e.params.force,life:1}); } for(const p of e.state.p){ p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.life-=0.012; if(p.y>=e.rows-1&&p.vy>0)p.life=0; } e.state.p=e.state.p.filter(p=>p.life>0&&p.y>0); },
+  draw(e){ const ramp=e.ramp(); for(const p of e.state.p){ const t=clamp(p.life,0,1); e.grid.set(p.x,p.y,shadeChar(ramp,t),COL3(t)); } },
+  hud(e,fps){ return "  FOUNTAIN   "+fps+" fps   particles:"+e.state.p.length+"   [space]pause"; },
+  icon:"    :     \n   :*:    \n  :*+*:   \n :*+ +*:  \n:*+   +*: \n*+     +* \n+       + \n:       : \n.........." };
+
+/* 26 SNOW — drifting fall + accumulation */
+const Snow={ name:'Snowfall', cat:'flow & particles', fps:30,
+  sliders:[{id:'density',label:'flakes',min:0.2,max:1,step:0.05,def:0.5},{id:'wind',label:'wind',min:-1,max:1,step:0.1,def:0.2}],
+  setup(e){ e.state.f=[]; const N=Math.floor(e.cols*e.rows*0.04*e.params.density); for(let i=0;i<N;i++)e.state.f.push({x:Math.random()*e.cols,y:Math.random()*e.rows,sp:0.2+Math.random()*0.4,ph:Math.random()*TAU}); e.state.dens=e.params.density; },
+  update(e){ if(Math.abs(e.params.density-e.state.dens)>0.001)this.setup(e); const w=e.params.wind; for(const f of e.state.f){ f.ph+=0.05; f.y+=f.sp; f.x+=Math.sin(f.ph)*0.3+w*0.4; if(f.y>=e.rows){ f.y=0; f.x=Math.random()*e.cols; } if(f.x<0)f.x+=e.cols; if(f.x>=e.cols)f.x-=e.cols; } },
+  draw(e){ const ramp=e.ramp(); const chars=e.charMode==='ascii'?'*.+':null; for(const f of e.state.f){ const t=f.sp/0.6; const ch=chars?chars[Math.floor(t*chars.length)%chars.length]:shadeChar(ramp,t); const col=t>0.6?'var(--hud)':'var(--ink)'; e.grid.set(f.x,f.y,ch,col); } },
+  hud(e,fps){ return "  SNOWFALL   "+fps+" fps   drift   [space]pause"; },
+  icon:". * . + . \n + . * . .\n* . . + * \n. + * . . \n . . * . +\n* . + . * \n. * . . + \n + . * . .\n* . . + . " };
+
+/* 27 SLIME — Physarum-style agents leaving trails */
+const Slime={ name:'Slime Mould', cat:'flocking', fps:40,
+  sliders:[{id:'agents',label:'agents',min:80,max:600,step:20,def:300},{id:'sense',label:'sense',min:1,max:6,step:1,def:3}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(20,Math.round(e.cols)),R:Math.max(14,Math.round(e.rows))}; },
+  setup(e){ e.state.C=e.cols; e.state.R=e.rows; e.state.trail=new Float32Array(e.cols*e.rows); e.state.ag=[]; const N=e.params.agents|0; for(let i=0;i<N;i++)e.state.ag.push({x:e.cols/2+(Math.random()-0.5)*10,y:e.rows/2+(Math.random()-0.5)*10,a:Math.random()*TAU}); e.state.ax=N; },
+  sample(e,x,y){ x=(x+e.cols)%e.cols|0; y=(y+e.rows)%e.rows|0; return e.state.trail[y*e.cols+x]; },
+  update(e){ if((e.params.agents|0)!==e.state.ax||e.state.C!==e.cols)this.setup(e); const C=e.cols,R=e.rows,T=e.state.trail; const sd=e.params.sense;
+    for(const ag of e.state.ag){ const fl=this.sample(e,ag.x+Math.cos(ag.a-0.5)*sd,ag.y+Math.sin(ag.a-0.5)*sd); const fc=this.sample(e,ag.x+Math.cos(ag.a)*sd,ag.y+Math.sin(ag.a)*sd); const fr=this.sample(e,ag.x+Math.cos(ag.a+0.5)*sd,ag.y+Math.sin(ag.a+0.5)*sd);
+      if(fc>fl&&fc>fr){} else if(fl>fr)ag.a-=0.4; else if(fr>fl)ag.a+=0.4; else ag.a+=(Math.random()-0.5)*0.6;
+      ag.x+=Math.cos(ag.a); ag.y+=Math.sin(ag.a); if(ag.x<0)ag.x+=C; if(ag.x>=C)ag.x-=C; if(ag.y<0)ag.y+=R; if(ag.y>=R)ag.y-=R; T[(ag.y|0)*C+(ag.x|0)]=1; }
+    // diffuse + decay
+    const n=new Float32Array(T.length); for(let y=0;y<R;y++)for(let x=0;x<C;x++){ let s=0; for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)s+=T[((y+dy+R)%R)*C+((x+dx+C)%C)]; n[y*C+x]=(s/9)*0.92; } e.state.trail=n; },
+  draw(e){ const ramp=e.ramp(); const T=e.state.trail,C=e.cols; for(let y=0;y<e.rows;y++)for(let x=0;x<C;x++){ const v=T[y*C+x]; if(v>0.02){ const ch=shadeChar(ramp,clamp(v,0,1)); if(ch!==' ')e.grid.set(x,y,ch,COL3(v)); } } },
+  hud(e,fps){ return "  SLIME MOULD   "+fps+" fps   physarum   [space]pause [r]reset"; },
+  icon:"  .--..   \n .'    '. .\n/  .--.  \\'\n| /    \\ | \n|.  ..  .| \n \\ '  ' /  \n  '.__.'   \n .-'  '-.  \n'        ' " };
+
+/* 28 ROTATING CUBE — wireframe 3D */
+const Cube={ name:'Wire Cube', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spinx',label:'pitch',min:0,max:0.1,step:0.005,def:0.03},{id:'spiny',label:'yaw',min:0,max:0.1,step:0.005,def:0.04}],
+  setup(e){ e.state.ax=0; e.state.ay=0; e.state.az=0; },
+  update(e){ e.state.ax+=e.params.spinx; e.state.ay+=e.params.spiny; e.state.az+=0.01; },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const V=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]]; const E=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.2*e.params.zoom; const ax=e.state.ax,ay=e.state.ay;
+    const proj=(p)=>{ let [x,y,z]=p; let yy=y*Math.cos(ax)-z*Math.sin(ax); let zz=y*Math.sin(ax)+z*Math.cos(ax); let xx=x*Math.cos(ay)-zz*Math.sin(ay); zz=x*Math.sin(ay)+zz*Math.cos(ay); const d=4/(4+zz); return [cx+xx*sc*d, cy+yy*sc*d*0.5]; };
+    const pts=V.map(proj); for(const [a,b] of E){ const [x0,y0]=pts[a],[x1,y1]=pts[b]; const st=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))|0; for(let i=0;i<=st;i++){ const x=x0+(x1-x0)*i/st,y=y0+(y1-y0)*i/st; e.grid.set(x,y,ch,'var(--ink)'); } } },
+  hud(e,fps){ return "  WIRE CUBE   "+fps+" fps   3d projection   [space]pause"; },
+  icon:"  .----.  \n .'    .'| \n+----+'  | \n|    |   + \n|    | .'  \n+----+'    \n .'        \n+          \n           " };
+
+/* 29 SPHERE LATTICE — rotating dotted globe */
+const Globe={ name:'Globe', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spin',label:'spin',min:0.005,max:0.06,step:0.005,def:0.02},{id:'density',label:'dots',min:8,max:24,step:1,def:16}],
+  setup(e){ e.state.a=0; },
+  update(e){ e.state.a+=e.params.spin; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.4*e.params.zoom; const N=e.params.density|0; const a=e.state.a;
+    for(let i=0;i<N;i++){ const lat=(i/(N-1)-0.5)*Math.PI; for(let j=0;j<N*2;j++){ const lon=j/(N*2)*TAU+a; let x=Math.cos(lat)*Math.cos(lon),y=Math.sin(lat),z=Math.cos(lat)*Math.sin(lon); const px=Math.round(cx+x*R),py=Math.round(cy+y*R*0.5); const t=(z+1)/2; if(z>-0.1){ const ch=shadeChar(ramp,t); e.grid.set(px,py,ch,COL3(t)); } } } },
+  hud(e,fps){ return "  GLOBE   "+fps+" fps   latitude lattice   [space]pause"; },
+  icon:"  .:::.   \n .:'':'.  \n:'  : ':  \n: .:::. :: \n:'  :  ': \n':  :  :' \n ':.:.:'  \n  ':::'   \n   '.'    " };
+
+/* 30 SPIROGRAPH — continuously drawn hypotrochoid */
+const Spiro={ name:'Spirograph', cat:'geometry', fps:60,
+  sliders:[{id:'ratio',label:'ratio',min:2,max:9,step:1,def:5},{id:'speed',label:'speed',min:1,max:8,step:1,def:3}],
+  setup(e){ e.state.t=0; e.state.pts=[]; },
+  update(e){ for(let s=0;s<(e.params.speed|0);s++){ e.state.t+=0.05; const R=1,r=1/(e.params.ratio|0),d=0.8; const t=e.state.t; const k=R-r; const x=k*Math.cos(t)+d*Math.cos(k/r*t); const y=k*Math.sin(t)-d*Math.sin(k/r*t); e.state.pts.push([x,y]); } while(e.state.pts.length>1400)e.state.pts.shift(); },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.42*e.params.zoom; const P=e.state.pts;
+    for(let i=0;i<P.length;i++){ const [x,y]=P[i]; const px=Math.round(cx+x*sc),py=Math.round(cy+y*sc*0.5); const t=i/P.length; e.grid.set(px,py,shadeChar(ramp,t),COL3(t)); } },
+  hud(e,fps){ return "  SPIROGRAPH   "+fps+" fps   hypotrochoid   [space]pause [r]reset"; },
+  icon:"  .-~~-.  \n .'/  \\'. \n / |    | \\\n|  \\    /  |\n|   '..'   |\n \\ .'  '. /\n  X      X \n '.\\    /.'\n   '-..-'  " };
+
+
+/* ===== 31-50 : all self-animating. 2 sliders + universal zoom each. ===== */
+
+/* 31 NEWTON — Newton fractal for z^3 - c, with c rotating so the basins move */
+const Newton={ name:'Newton Fractal', cat:'fractals', fps:18,
+  sliders:[{id:'detail',label:'detail',min:6,max:30,step:1,def:16},{id:'spin',label:'spin',min:0.1,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.03*e.params.spin; },
+  draw(e){ const ramp=e.ramp(); const maxI=e.params.detail|0; const z=e.params.zoom; const rot=e.state.t;
+    const spanX=3.0/z, spanY=spanX*(e.rows/e.cols)*2.0;
+    const cr=Math.cos(rot)*0.6, ci=Math.sin(rot)*0.6;   // moving constant c = solving z^3 = c
+    for(let py=0;py<e.rows;py++)for(let px=0;px<e.cols;px++){ let x=(px/e.cols-0.5)*spanX, y=(py/e.rows-0.5)*spanY;
+      let it=0; for(;it<maxI;it++){ const zr=x, zi=y; const z3r=zr*zr*zr-3*zr*zi*zi, z3i=3*zr*zr*zi-zi*zi*zi; const fr=z3r-(1+cr), fi=z3i-ci;
+        const dr=3*(zr*zr-zi*zi), di=6*zr*zi; const dd=dr*dr+di*di; if(dd<1e-9)break;
+        const qr=(fr*dr+fi*di)/dd, qi=(fi*dr-fr*di)/dd; x=zr-qr; y=zi-qi;
+        if(qr*qr+qi*qi<1e-5)break; }
+      const ang=Math.atan2(y,x); const t=((ang/TAU)%1+1)%1; const ch=shadeChar(ramp,0.25+0.75*(it/maxI));
+      if(ch!==' ')e.grid.set(px,py,ch,COL3(t)); } },
+  icon:"  .:|:.  \n .:|||:. \n.:||@||:.\n:|||@|||:\n.:||@||:.\n .:|||:. \n  .:|:.  \n  . | .  \n   .|.   " };
+
+/* 32 CLIFFORD — Clifford strange attractor, slowly morphing params */
+const Clifford={ name:'Clifford Attractor', cat:'fractals', fps:30,
+  sliders:[{id:'points',label:'points',min:2000,max:12000,step:500,def:6000},{id:'drift',label:'drift',min:0,max:2,step:0.1,def:0.6}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.004*e.params.drift; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const a=-1.4+Math.sin(t)*0.3,b=1.6+Math.cos(t*0.7)*0.2,c=1.0+Math.sin(t*0.5)*0.3,d=0.7;
+    let x=0.1,y=0.1; const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.22*e.params.zoom; const N=e.params.points|0;
+    const acc=new Float32Array(e.cols*e.rows);
+    for(let i=0;i<N;i++){ const nx=Math.sin(a*y)+c*Math.cos(a*x); const ny=Math.sin(b*x)+d*Math.cos(b*y); x=nx; y=ny;
+      const px=Math.round(cx+x*sc), py=Math.round(cy+y*sc*0.5); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)acc[py*e.cols+px]+=1; }
+    for(let i=0;i<acc.length;i++){ if(acc[i]>0){ const tt=clamp(acc[i]/6,0,1); const ch=shadeChar(ramp,tt); const x2=i%e.cols,y2=(i/e.cols)|0; e.grid.set(x2,y2,ch,COL3(tt)); } } },
+  icon:"  .::..  \n.:'  ':. \n:  .::. :\n: :'':' :\n:  '::' :\n':.    .:\n  ':..:' \n .::..:. \n'      ' " };
+
+/* 33 SINE FLOW — animated trig color field (interference + scroll) */
+const SineFlow={ name:'Sine Field', cat:'noise & fields', fps:30,
+  sliders:[{id:'freq',label:'freq',min:0.05,max:0.4,step:0.01,def:0.15},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.05*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const f=e.params.freq/e.params.zoom; const t=e.state.t;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const v=Math.sin(x*f+t)+Math.sin(y*f*2+t*1.3)+Math.sin((x+y)*f+t*0.7); const tt=clamp((v+3)/6,0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  icon:"=~:.:~=*#\n~:.:~=*#*\n:.:~=*#*=\n.:~=*#*=~\n:~=*#*=~:\n~=*#*=~:.\n=*#*=~:.:\n*#*=~:.:~\n#*=~:.:~=" };
+
+/* 34 CURL NOISE — particles in a curl field (smoke-like) */
+const Curl={ name:'Curl Noise', cat:'flow & particles', fps:30,
+  sliders:[{id:'count',label:'count',min:200,max:1400,step:50,def:700},{id:'speed',label:'speed',min:0.2,max:1.8,step:0.1,def:0.8}],
+  setup(e){ e.state.t=0; e.state.p=[]; this.reseed(e); },
+  reseed(e){ const N=e.params.count|0; e.state.p=[]; for(let i=0;i<N;i++)e.state.p.push({x:Math.random()*e.cols,y:Math.random()*e.rows,life:Math.random()}); },
+  pot(x,y,t){ return Math.sin(x*0.1+t)*Math.cos(y*0.1-t*0.6)+0.5*Math.sin((x+y)*0.06+t); },
+  update(e){ if(e.state.p.length!==(e.params.count|0))this.reseed(e); e.state.t+=0.02; const t=e.state.t,sp=e.params.speed,sc=1/e.params.zoom;
+    for(const p of e.state.p){ const d=0.5; const dx=(this.pot(p.x*sc,(p.y+d)*sc,t)-this.pot(p.x*sc,(p.y-d)*sc,t)); const dy=(this.pot((p.x+d)*sc,p.y*sc,t)-this.pot((p.x-d)*sc,p.y*sc,t));
+      p.x+=dx*sp*6; p.y-=dy*sp*6; p.life-=0.01; if(p.life<=0||p.x<0||p.x>=e.cols||p.y<0||p.y>=e.rows){ p.x=Math.random()*e.cols; p.y=Math.random()*e.rows; p.life=1; } } },
+  draw(e){ const ramp=e.ramp(); for(const p of e.state.p){ const ch=shadeChar(ramp,clamp(p.life,0,1)); e.grid.set(p.x,p.y,ch,COL3(p.life)); } },
+  icon:" .~-,.   \n.~-,~-,. \n~-,~-,~-,\n-,~-,~-,~\n,~-,~-,~-\n ,~-,~-, \n  ,~-,.  \n .~-,.   \n,~-,.    " };
+
+/* 35 SMOOTHLIFE — continuous Game of Life, organic blobs always evolving */
+const Smooth={ name:'SmoothLife', cat:'cellular automata', fps:20,
+  sliders:[{id:'radius',label:'scale',min:2,max:6,step:1,def:3},{id:'speed',label:'speed',min:4,max:30,step:1,def:16}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(24,Math.round(e.cols/z)),R:Math.max(16,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; const n=d.C*d.R; e.state.f=new Float32Array(n);
+    for(let i=0;i<n;i++)e.state.f[i]=Math.random()<0.45?1:0; e.state.z=e.params.zoom; e.state.ra=e.params.radius; },
+  update(e){ if(e.params.zoom!==e.state.z||e.params.radius!==e.state.ra)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps;
+    const C=e.state.C,R=e.state.R,f=e.state.f; const ri=e.params.radius, ra=ri*3; const nf=new Float32Array(f.length);
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ let inner=0,ic=0,outer=0,oc=0;
+      for(let dy=-ra;dy<=ra;dy++)for(let dx=-ra;dx<=ra;dx++){ const dist=Math.hypot(dx,dy); if(dist>ra)continue; const v=f[((y+dy+R)%R)*C+((x+dx+C)%C)];
+        if(dist<=ri){ inner+=v; ic++; } else { outer+=v; oc++; } }
+      const m=inner/ic, nn=outer/oc; // smoothlife transition (smoothed B/S)
+      const sig=(a,b,w)=>1/(1+Math.exp(-(a-b)/w));
+      const alive=sig(m,0.5,0.03);
+      // birth window ~[0.20,0.26], survive window ~[0.18,0.32]
+      const birth=sig(nn,0.20,0.03)*(1-sig(nn,0.26,0.03));
+      const survive=sig(nn,0.18,0.03)*(1-sig(nn,0.32,0.03));
+      const next=alive*survive+(1-alive)*birth; const i=y*C+x; nf[i]=clamp(f[i]+(2*next-1)*0.4,0,1); }
+    e.state.f=nf; },
+  draw(e){ const ramp=e.ramp(); const f=e.state.f,C=e.state.C,R=e.state.R; const sx=e.cols/C,sy=e.rows/R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const v=f[y*C+x]; if(v>0.15){ const ch=shadeChar(ramp,v); const px=Math.floor(x*sx),py=Math.floor(y*sy); e.grid.set(px,py,ch,COL3(v)); } } },
+  icon:" .oOo.   \n.oOOOo.  \noOO@@Oo. \nOO@@@@Oo \noO@@@@Oo.\n.oO@@Oo. \n .oOOo.  \n  .oo.   \n   ..    " };
+
+/* 36 SWARM — digit-forming swarm (particles drift toward a moving target ring) */
+const Swarm={ name:'Particle Swarm', cat:'flocking', fps:40,
+  sliders:[{id:'count',label:'agents',min:100,max:600,step:20,def:300},{id:'tight',label:'tight',min:0.005,max:0.05,step:0.005,def:0.02}],
+  setup(e){ e.state.a=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.a.push({x:Math.random()*e.cols,y:Math.random()*e.rows,vx:0,vy:0}); e.state.t=0; },
+  update(e){ if(e.state.a.length!==(e.params.count|0))this.setup(e); e.state.t+=0.02; const cx=e.cols/2,cy=e.rows/2; const Rr=Math.min(e.cols,e.rows*2)*0.3*e.params.zoom; const k=e.params.tight;
+    let i=0; const N=e.state.a.length; for(const ag of e.state.a){ const ang=(i/N)*TAU+e.state.t; const tx=cx+Math.cos(ang)*Rr, ty=cy+Math.sin(ang)*Rr*0.5;
+      ag.vx+=(tx-ag.x)*k; ag.vy+=(ty-ag.y)*k; ag.vx*=0.9; ag.vy*=0.9; ag.x+=ag.vx; ag.y+=ag.vy; i++; } },
+  draw(e){ const ramp=e.ramp(); for(const ag of e.state.a){ const sp=Math.hypot(ag.vx,ag.vy); const t=clamp(sp/2,0,1); e.grid.set(ag.x,ag.y,shadeChar(ramp,0.4+t*0.6),COL3(0.4+t*0.5)); } },
+  icon:"  .***.  \n .*   *. \n*   o   *\n*  o o  *\n*   o   *\n .*   *. \n  .***.  \n . . . . \n. . . . ." };
+
+/* 37 ROSE — animated maurer rose / rhodonea curve */
+const Rose={ name:'Maurer Rose', cat:'geometry', fps:40,
+  sliders:[{id:'n',label:'petals',min:2,max:12,step:1,def:6},{id:'d',label:'angle',min:1,max:120,step:1,def:71}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.01; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.42*e.params.zoom; const n=e.params.n,d=e.params.d+Math.sin(e.state.t)*4;
+    let prev=null; for(let i=0;i<=360;i++){ const k=i*d*Math.PI/180; const r=Math.sin(n*k); const x=cx+r*Math.cos(k)*R, y=cy+r*Math.sin(k)*R*0.5;
+      if(prev){ const st=Math.max(Math.abs(x-prev[0]),Math.abs(y-prev[1]))|0; for(let s=0;s<=st;s++){ const px=prev[0]+(x-prev[0])*s/st, py=prev[1]+(y-prev[1])*s/st; const t=i/360; e.grid.set(px,py,shadeChar(ramp,0.4+t*0.6),COL3(0.5+t*0.4)); } }
+      prev=[x,y]; } },
+  icon:"  ./|\\.  \n .//|\\\\. \n.///|\\\\\\.\n--+-+-+--\n'\\\\\\|///'\n .\\\\|//. \n  '\\|/'  \n   '|'   \n    '    " };
+
+/* 38 HARMONOGRAPH — decaying pendulum-drawn lissajous */
+const Harmono={ name:'Harmonograph', cat:'geometry', fps:60,
+  sliders:[{id:'ratio',label:'ratio',min:1,max:6,step:0.5,def:3},{id:'decay',label:'decay',min:0.0005,max:0.004,step:0.0005,def:0.002}],
+  setup(e){ e.state.t=0; e.state.pts=[]; },
+  update(e){ for(let s=0;s<4;s++){ e.state.t+=0.04; const t=e.state.t; const dmp=Math.exp(-e.params.decay*t*30); const r=e.params.ratio;
+      const x=Math.sin(t)*dmp+Math.sin(t*r+1)*dmp*0.6; const y=Math.cos(t*1.01)*dmp+Math.cos(t*(r*0.5)+2)*dmp*0.6; e.state.pts.push([x,y]); }
+    if(e.state.t>180){ e.state.t=0; e.state.pts=[]; } while(e.state.pts.length>1600)e.state.pts.shift(); },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.3*e.params.zoom; const P=e.state.pts;
+    for(let i=0;i<P.length;i++){ const [x,y]=P[i]; const px=Math.round(cx+x*sc),py=Math.round(cy+y*sc*0.5); const t=i/P.length; e.grid.set(px,py,shadeChar(ramp,t),COL3(t)); } },
+  icon:"  ..--.. \n .'.--.'.\n/ /  \\ \\ \n| | () | |\n\\ \\  / / \n '.'--'.' \n  ''--'' \n .-..-.  \n'      ' " };
+
+/* 39 FFT BARS — animated spectrum analyzer (synthetic) */
+const Spectrum={ name:'Spectrum', cat:'signal', fps:40,
+  sliders:[{id:'bands',label:'bands',min:12,max:60,step:2,def:32},{id:'speed',label:'speed',min:0.5,max:3,step:0.1,def:1.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.06*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const bands=e.params.bands|0; const bw=e.cols/bands; const t=e.state.t;
+    for(let b=0;b<bands;b++){ const amp=(Math.sin(t+b*0.5)*0.4+Math.sin(t*1.7+b)*0.3+0.5)*Math.exp(-b/bands*1.2); const h=Math.max(0,Math.floor(amp*e.rows*e.params.zoom));
+      const x0=Math.floor(b*bw); for(let x=x0;x<Math.floor((b+1)*bw)-0;x++){ for(let y=0;y<h;y++){ const py=e.rows-1-y; const tt=y/Math.max(1,h); const ch=shadeChar(ramp,0.4+tt*0.6); e.grid.set(x,py,ch,COL3(tt)); } } } },
+  icon:"#   #    \n#  ## #  \n# ### ## \n# #### ##\n# ##### #\n#########\n#########\n#########\n#########" };
+
+/* 40 OSCILLOSCOPE — lissajous trace with phase drift */
+const Scope={ name:'Oscilloscope', cat:'signal', fps:60,
+  sliders:[{id:'fx',label:'freq x',min:1,max:7,step:1,def:3},{id:'fy',label:'freq y',min:1,max:7,step:1,def:2}],
+  setup(e){ e.state.t=0; e.state.ph=0; },
+  update(e){ e.state.t+=0.05; e.state.ph+=0.005; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.42*e.params.zoom; const fx=e.params.fx,fy=e.params.fy,ph=e.state.ph;
+    const N=400; let prev=null; for(let i=0;i<=N;i++){ const a=i/N*TAU; const x=cx+Math.sin(fx*a+ph)*R, y=cy+Math.sin(fy*a)*R*0.5;
+      if(prev){ const st=Math.max(1,Math.max(Math.abs(x-prev[0]),Math.abs(y-prev[1]))|0); for(let s=0;s<=st;s++){ const px=prev[0]+(x-prev[0])*s/st,py=prev[1]+(y-prev[1])*s/st; const t=i/N; e.grid.set(px,py,shadeChar(ramp,0.5+t*0.5),COL3(0.6)); } } prev=[x,y]; } },
+  icon:"  .--.   \n .'  '.  \n/  ..  \\ \n| '  ' | \n|  ..  | \n\\ '  ' / \n '.  .'  \n  '--'   \n   ..    " };
+
+/* 41 TORUS KNOT — rotating 3D knot of points */
+const Knot={ name:'Torus Knot', cat:'3d in ascii', fps:40,
+  sliders:[{id:'p',label:'p',min:1,max:5,step:1,def:2},{id:'q',label:'q',min:1,max:7,step:1,def:3}],
+  setup(e){ e.state.a=0; },
+  update(e){ e.state.a+=0.02; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.18*e.params.zoom; const A=e.state.a; const p=e.params.p,q=e.params.q;
+    const cA=Math.cos(A),sA=Math.sin(A); const N=400;
+    for(let i=0;i<N;i++){ const t=i/N*TAU; const r=2+Math.cos(q*t); let x=r*Math.cos(p*t), y=r*Math.sin(p*t), z=Math.sin(q*t)*1.5;
+      const xx=x*cA - z*sA; const zz=x*sA + z*cA; const d=4/(4+zz); const px=Math.round(cx+xx*sc*d), py=Math.round(cy+y*sc*d*0.5); const sh=(zz+3)/6; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,sh),COL3(sh)); } },
+  icon:" .-~~-.  \n/ .--. \\ \n|/ .. \\| \n| | () | |\n|\\ '' /| \n\\ '--' / \n '-~~-'  \n .-~~-.  \n'      ' " };
+
+/* 42 TUNNEL — flying through a textured tube */
+const Tunnel={ name:'Tunnel', cat:'3d in ascii', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'twist',label:'twist',min:0,max:3,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.04*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const t=e.state.t; const tw=e.params.twist; const zo=e.params.zoom;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=(x-cx),dy=(y-cy)*2; const dist=Math.hypot(dx,dy)+0.0001; const ang=Math.atan2(dy,dx);
+      const depth=(8*zo)/dist + t; const u=ang/TAU*8 + tw*depth; const v=depth; const pat=(Math.floor(u)+Math.floor(v))&1; const shade=clamp(1-dist/(Math.max(e.cols,e.rows)*0.6),0,1);
+      if(pat){ const ch=shadeChar(ramp,shade); if(ch!==' ')e.grid.set(x,y,ch,COL3(shade)); } } },
+  icon:"#  ::  #\n # :: # \n#  ::  #\n:  @@  :\n:  @@  :\n#  ::  #\n # :: # \n#  ::  #\n:      :" };
+
+/* 43 METABALLS — blobby field, drifting centers */
+const Meta={ name:'Metaballs', cat:'noise & fields', fps:30,
+  sliders:[{id:'balls',label:'balls',min:2,max:8,step:1,def:4},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.b=[]; const N=e.params.balls|0; for(let i=0;i<N;i++)e.state.b.push({x:Math.random()*e.cols,y:Math.random()*e.rows,vx:(Math.random()-0.5)*0.8,vy:(Math.random()-0.5)*0.8,r:4+Math.random()*4}); },
+  update(e){ if(e.state.b.length!==(e.params.balls|0))this.setup(e); const sp=e.params.speed; for(const b of e.state.b){ b.x+=b.vx*sp; b.y+=b.vy*sp; if(b.x<0||b.x>=e.cols)b.vx*=-1; if(b.y<0||b.y>=e.rows)b.vy*=-1; } },
+  draw(e){ const ramp=e.ramp(); const zo=e.params.zoom; for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let v=0; for(const b of e.state.b){ const dx=x-b.x,dy=(y-b.y)*2; v+=(b.r*b.r*zo)/(dx*dx+dy*dy+0.01); } const t=clamp(v,0,1); if(t>0.25){ const ch=shadeChar(ramp,t); e.grid.set(x,y,ch,COL3(t)); } } },
+  icon:"  .oo.   \n .o@@o.  \n.o@@@@o..\no@@@@@@oo\n'o@@@@o'o\n .o@@o.o.\n  .oo.oo.\n .o. .oo.\n'   ' 'oo" };
+
+/* 44 KALEIDOSCOPE — mirrored rotating pattern */
+const Kaleido={ name:'Kaleidoscope', cat:'noise & fields', fps:30,
+  sliders:[{id:'sides',label:'sides',min:3,max:12,step:1,def:6},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.03*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const seg=TAU/e.params.sides; const t=e.state.t; const sc=0.3/e.params.zoom;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=x-cx,dy=(y-cy)*2; let ang=Math.atan2(dy,dx)+t; const r=Math.hypot(dx,dy);
+      ang=Math.abs(((ang%seg)+seg)%seg - seg/2); const v=Math.sin(r*sc - t*2)+Math.sin(ang*6)+Math.cos(r*sc*0.5+t); const tt=clamp((v+2)/4,0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  icon:"=*. .*=  \n*.\\|/.*  \n.*-+-*.  \n*.|@|.*  \n=*-+-*=  \n*./|\\.*  \n=*' '*=  \n .* *.   \n'     '  " };
+
+/* 45 PHYLLOTAXIS — sunflower seed spiral, growing/rotating */
+const Phyllo={ name:'Phyllotaxis', cat:'geometry', fps:40,
+  sliders:[{id:'seeds',label:'seeds',min:100,max:600,step:20,def:300},{id:'angle',label:'angle',min:137,max:138,step:0.1,def:137.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.01; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const N=e.params.seeds|0; const ga=e.params.angle*Math.PI/180; const c=Math.min(e.cols,e.rows*2)*0.04*e.params.zoom; const rot=e.state.t;
+    for(let i=0;i<N;i++){ const a=i*ga+rot; const r=c*Math.sqrt(i); const px=Math.round(cx+r*Math.cos(a)), py=Math.round(cy+r*Math.sin(a)*0.5); const t=i/N; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.4+t*0.6),COL3(0.5+t*0.4)); } },
+  icon:"  .o.o.  \n .o.O.o. \no.O.@.O.o\n.O.@@@.O.\no.O.@.O.o\n .o.O.o. \n  .o.o.  \n . o o . \n.   .   ." };
+
+/* 46 GAME OF LIFE — HighLife variant (B36/S23), self-running */
+const HighLife={ name:'HighLife', cat:'cellular automata', fps:14,
+  sliders:[{id:'density',label:'seed',min:0.05,max:0.5,step:0.01,def:0.30},{id:'speed',label:'speed',min:4,max:30,step:1,def:14}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(8,Math.round(e.cols/z)),R:Math.max(6,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; const n=d.C*d.R; e.state.a=new Uint8Array(n); e.state.b=new Uint8Array(n); const dd=e.params.density; for(let i=0;i<n;i++)e.state.a[i]=Math.random()<dd?1:0; e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const a=e.state.a,b=e.state.b,C=e.state.C,R=e.state.R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ let s=0; for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){ if(!dx&&!dy)continue; s+=a[((y+dy+R)%R)*C+((x+dx+C)%C)]; } const i=y*C+x; b[i]=(a[i]&&(s===2||s===3))||(!a[i]&&(s===3||s===6))?1:0; }
+    e.state.a=b; e.state.b=a; },
+  draw(e){ const a=e.state.a,C=e.state.C,R=e.state.R; const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const sx=e.cols/C,sy=e.rows/R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(a[y*C+x]){ const px=Math.floor(x*sx),py=Math.floor(y*sy); e.grid.set(px,py,ch,'var(--ink)'); } },
+  icon:" ## # ## \n# ## ## #\n ## ## ##\n#  ##  # \n ## # ###\n# ## ## #\n ## ## ##\n#  #  ## \n ## # ## " };
+
+/* 47 VORONOI SHATTER — animated voronoi cells, drifting sites */
+const Voronoi={ name:'Voronoi', cat:'noise & fields', fps:24,
+  sliders:[{id:'sites',label:'sites',min:5,max:30,step:1,def:14},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.s=[]; const N=e.params.sites|0; for(let i=0;i<N;i++)e.state.s.push({x:Math.random()*e.cols,y:Math.random()*e.rows,vx:(Math.random()-0.5),vy:(Math.random()-0.5),tone:Math.random()}); },
+  update(e){ if(e.state.s.length!==(e.params.sites|0))this.setup(e); const sp=e.params.speed; for(const s of e.state.s){ s.x+=s.vx*sp; s.y+=s.vy*sp; if(s.x<0||s.x>=e.cols)s.vx*=-1; if(s.y<0||s.y>=e.rows)s.vy*=-1; } },
+  draw(e){ const ramp=e.ramp(); for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let d1=1e9,d2=1e9,best=0; for(const s of e.state.s){ const dx=x-s.x,dy=(y-s.y)*2; const dd=dx*dx+dy*dy; if(dd<d1){ d2=d1; d1=dd; best=s.tone; } else if(dd<d2)d2=dd; }
+    const edge=(Math.sqrt(d2)-Math.sqrt(d1)); const t = edge<1.5 ? 1 : best*0.6; const ch=shadeChar(ramp,t); if(ch!==' ')e.grid.set(x,y,ch,COL3(t)); } },
+  icon:"###.::###\n##./..###\n#./   .##\n./  o  .#\n/   .   \\\n#.  .  ./\n##.   ./#\n###../.##\n####::###" };
+
+/* 48 PILLOW / CYMATICS — chladni plate standing wave nodes */
+const Chladni={ name:'Cymatics', cat:'physics', fps:30,
+  sliders:[{id:'m',label:'mode m',min:1,max:8,step:1,def:3},{id:'n',label:'mode n',min:1,max:8,step:1,def:4}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02; },
+  draw(e){ const ramp=e.ramp(); const m=e.params.m+Math.sin(e.state.t)*0.0, n=e.params.n; const t=e.state.t; const zo=e.params.zoom;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const u=x/e.cols, v=y/e.rows; const val=Math.sin(m*Math.PI*u)*Math.sin(n*Math.PI*v)+Math.sin(n*Math.PI*u)*Math.sin(m*Math.PI*v)*Math.cos(t);
+      const node=1-clamp(Math.abs(val)*3*zo,0,1); if(node>0.3){ const ch=shadeChar(ramp,node); e.grid.set(x,y,ch,COL3(node)); } } },
+  icon:".#  ##  #\n #.#  #.# \n  .####.  \n# .#  #. #\n## .  . ##\n# .#  #. #\n  .####.  \n #.#  #.# \n.#  ##  #" };
+
+/* 49 GALAXY — spiral arms of stars rotating */
+const Galaxy={ name:'Galaxy', cat:'3d in ascii', fps:40,
+  sliders:[{id:'arms',label:'arms',min:2,max:6,step:1,def:3},{id:'stars',label:'stars',min:200,max:900,step:50,def:500}],
+  setup(e){ e.state.t=0; e.state.st=[]; const N=e.params.stars|0; for(let i=0;i<N;i++){ const r=Math.pow(Math.random(),0.5); const arm=Math.floor(Math.random()*e.params.arms); const a=arm/e.params.arms*TAU + r*3 + (Math.random()-0.5)*0.4; e.state.st.push({r,a}); } e.state.sn=N; e.state.an=e.params.arms; },
+  update(e){ if((e.params.stars|0)!==e.state.sn||e.params.arms!==e.state.an)this.setup(e); e.state.t+=0.01; for(const s of e.state.st)s.a+=0.02/(s.r+0.2); },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.42*e.params.zoom; for(const s of e.state.st){ const px=Math.round(cx+Math.cos(s.a)*s.r*R), py=Math.round(cy+Math.sin(s.a)*s.r*R*0.5); const t=1-s.r; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.3+t*0.7),COL3(0.4+t*0.5)); } },
+  icon:"   ..    \n .'@@'.  \n.'@@@@'. \n'@@.-.@@'\n@@.@@@.@@\n'@@'-'@@'\n.'@@@@'. \n .'@@'.  \n   ''    " };
+
+/* 50 DLA — diffusion-limited aggregation, crystal growing */
+const DLA={ name:'Dendrite Growth', cat:'noise & fields', fps:60,
+  sliders:[{id:'walkers',label:'walkers',min:1,max:8,step:1,def:4},{id:'speed',label:'steps',min:20,max:200,step:10,def:80}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(20,Math.round(e.cols/z)),R:Math.max(14,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; e.state.g=new Uint8Array(d.C*d.R); e.state.g[(d.R>>1)*d.C+(d.C>>1)]=1; e.state.w=[]; for(let i=0;i<(e.params.walkers|0);i++)e.state.w.push(this.spawn(d.C,d.R)); e.state.z=e.params.zoom; e.state.count=1; },
+  spawn(C,R){ const edge=Math.floor(Math.random()*4); if(edge===0)return{x:Math.random()*C|0,y:0}; if(edge===1)return{x:Math.random()*C|0,y:R-1}; if(edge===2)return{x:0,y:Math.random()*R|0}; return{x:C-1,y:Math.random()*R|0}; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); const g=e.state.g,C=e.state.C,R=e.state.R; const steps=e.params.speed|0;
+    for(let s=0;s<steps;s++)for(const w of e.state.w){ const dx=(Math.random()*3|0)-1, dy=(Math.random()*3|0)-1; w.x=clamp(w.x+dx,0,C-1); w.y=clamp(w.y+dy,0,R-1);
+      let stick=false; for(let oy=-1;oy<=1&&!stick;oy++)for(let ox=-1;ox<=1;ox++){ const xx=w.x+ox,yy=w.y+oy; if(xx>=0&&xx<C&&yy>=0&&yy<R&&g[yy*C+xx]){ stick=true; break; } }
+      if(stick){ g[w.y*C+w.x]=1; e.state.count++; Object.assign(w,this.spawn(C,R)); } }
+    if(e.state.count>C*R*0.35)this.setup(e); },
+  draw(e){ const g=e.state.g,C=e.state.C,R=e.state.R; const sx=e.cols/C,sy=e.rows/R; const ramp=e.ramp(); const ch=ramp[ramp.length-1];
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(g[y*C+x]){ const px=Math.floor(x*sx),py=Math.floor(y*sy); e.grid.set(px,py,ch,'var(--ink)'); } },
+  icon:"  . | .  \n . \\|/ . \n.--.+.--.\n \\/ | \\/ \n--+-@-+--\n /\\ | /\\ \n'--'+'--'\n . /|\\ . \n  ' | '  " };
+
+/* ===== 51-75 : all self-animating. 2 sliders + universal zoom each. ===== */
+
+/* 51 ROTOZOOMER — classic demoscene rotating+zooming texture */
+const Rotozoom={ name:'Rotozoomer', cat:'demoscene', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'tex',label:'texture',min:2,max:10,step:1,def:5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.03*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const sc=(0.6+Math.sin(t*0.7)*0.4)/e.params.zoom; const ca=Math.cos(t),sa=Math.sin(t); const tx=e.params.tex; const cx=e.cols/2,cy=e.rows/2;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=(x-cx),dy=(y-cy)*2; const u=(dx*ca-dy*sa)*sc, v=(dx*sa+dy*ca)*sc; const pat=((Math.floor(u/tx)+Math.floor(v/tx))&1); const sh=pat?0.8:0.3; const ch=shadeChar(ramp,sh); if(ch!==' ')e.grid.set(x,y,ch,COL3(sh)); } },
+  icon:"#  ##  ##\n ##  ##  \n#  ##  ##\n ##  ##  \n#  @@  ##\n ##  ##  \n#  ##  ##\n ##  ##  \n#  ##  ##" };
+
+/* 52 FIRE — classic fire effect rising from bottom */
+const Fire={ name:'Fire', cat:'demoscene', fps:30,
+  sliders:[{id:'heat',label:'heat',min:0.4,max:1,step:0.05,def:0.85},{id:'wind',label:'wind',min:-1,max:1,step:0.1,def:0}],
+  setup(e){ e.state.f=new Float32Array(e.cols*e.rows); e.state.C=e.cols; e.state.R=e.rows; },
+  update(e){ if(e.state.C!==e.cols||e.state.R!==e.rows){ e.state.f=new Float32Array(e.cols*e.rows); e.state.C=e.cols; e.state.R=e.rows; }
+    const C=e.cols,R=e.rows,f=e.state.f; for(let x=0;x<C;x++)f[(R-1)*C+x]=Math.random()<e.params.heat?1:Math.random()*0.5;
+    const w=Math.round(e.params.wind); for(let y=0;y<R-1;y++)for(let x=0;x<C;x++){ const bx=(x+w+C)%C; const decay=0.04+Math.random()*0.06; f[y*C+x]=Math.max(0,(f[(y+1)*C+((x-1+C)%C)]+f[(y+1)*C+x]+f[(y+1)*C+((x+1)%C)]+f[Math.min(R-1,y+2)*C+bx])/4 - decay); } },
+  draw(e){ const ramp=e.ramp(); const f=e.state.f,C=e.cols; for(let y=0;y<e.rows;y++)for(let x=0;x<C;x++){ const v=f[y*C+x]; if(v>0.1){ const ch=shadeChar(ramp,clamp(v,0,1)); e.grid.set(x,y,ch,COL3(v)); } } },
+  icon:"  . .    \n . :,: . \n.:*#*:.  \n:*###*:. \n*##@##*: \n#######* \n##@@@##  \n#######  \n#######  " };
+
+/* 53 TWISTER — rotating ribbon/twister bar */
+const Twister={ name:'Twister', cat:'demoscene', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'width',label:'width',min:4,max:16,step:1,def:9}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.06*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2; const w=e.params.width*e.params.zoom; const t=e.state.t;
+    for(let y=0;y<e.rows;y++){ const ph=t+y*0.18; const pts=[0,1,2,3].map(k=>Math.sin(ph+k*Math.PI/2)*w); pts.sort((a,b)=>a-b);
+      for(let k=0;k<4;k++){ const x=Math.round(cx+pts[k]); const depth=(pts[k]/w+1)/2; const ch=shadeChar(ramp,0.3+depth*0.7); if(x>=0&&x<e.cols)e.grid.set(x,y,ch,COL3(depth)); }
+      // fill between adjacent strands
+      for(let k=0;k<3;k++){ const a=Math.round(cx+pts[k]),b=Math.round(cx+pts[k+1]); for(let x=a;x<=b;x++){ if(x>=0&&x<e.cols){ const depth=((pts[k]+pts[k+1])/2/w+1)/2; const ch=shadeChar(ramp,0.25+depth*0.55); if(ch!==' '&&!((x-cx)===0))e.grid.set(x,y,ch,COL3(depth)); } } } } },
+  icon:"  ###    \n  ####   \n   ####  \n    #### \n   ####  \n  ####   \n ####    \n  ###    \n   ###   " };
+
+/* 54 COPPER BARS — horizontal gradient bars sweeping vertically */
+const Copper={ name:'Copper Bars', cat:'demoscene', fps:30,
+  sliders:[{id:'bars',label:'bars',min:2,max:6,step:1,def:3},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.04*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const bars=e.params.bars; const bw=6*e.params.zoom;
+    for(let y=0;y<e.rows;y++){ let best=0; for(let b=0;b<bars;b++){ const center=(Math.sin(t+b*TAU/bars)*0.5+0.5)*e.rows; const d=Math.abs(y-center); const v=Math.max(0,1-d/bw); if(v>best)best=v; }
+      if(best>0.08){ const ch=shadeChar(ramp,best); for(let x=0;x<e.cols;x++)e.grid.set(x,y,ch,COL3(best)); } } },
+  icon:"#########\n#########\n.........\n         \n#########\n#########\n.........\n         \n#########" };
+
+/* 55 STARFIELD WARP — radial streaks (hyperspace) */
+const Warp={ name:'Hyperspace', cat:'3d in ascii', fps:40,
+  sliders:[{id:'count',label:'stars',min:80,max:500,step:20,def:240},{id:'speed',label:'warp',min:0.5,max:4,step:0.1,def:2}],
+  setup(e){ e.state.s=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.s.push(this.spawn(e)); },
+  spawn(e){ const a=Math.random()*TAU; return {a, r:Math.random()*3, sp:0.02+Math.random()*0.04}; },
+  update(e){ const S=e.state.s; if(S.length!==(e.params.count|0))this.setup(e); const sp=e.params.speed; for(const s of S){ s.r+=s.sp*sp; if(s.r>4){ Object.assign(s,this.spawn(e)); s.r=0.05; } } },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.18*e.params.zoom; for(const s of e.state.s){ const rr=s.r*s.r; const px=Math.round(cx+Math.cos(s.a)*rr*sc), py=Math.round(cy+Math.sin(s.a)*rr*sc*0.5); const t=clamp(s.r/4,0,1); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,t),COL3(t)); } },
+  icon:"\\  .|.  /\n \\ .|. / \n. \\.|./ .\n.. \\|/ ..\n--- @ ---\n.. /|\\ ..\n. /.|.\\ .\n / .|. \\ \n/  '|'  \\" };
+
+/* 56 WORMHOLE — concentric rotating tube rings */
+const Wormhole={ name:'Wormhole', cat:'3d in ascii', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'rings',label:'rings',min:4,max:14,step:1,def:8}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.05*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const t=e.state.t; const rings=e.params.rings;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=x-cx,dy=(y-cy)*2; const r=Math.hypot(dx,dy)+0.001; const ang=Math.atan2(dy,dx); const depth=(rings*2*e.params.zoom)/r + t*3; const ringPat=Math.sin(depth)*0.5+0.5; const swirl=Math.sin(ang*4+depth)*0.3; const v=clamp(ringPat+swirl,0,1)*clamp(r/8,0,1); if(v>0.3){ const ch=shadeChar(ramp,v); e.grid.set(x,y,ch,COL3(v)); } } },
+  icon:" .::::.  \n.:'~~':. \n:'.--.':.\n:':@@:'::\n:'.--.':.\n.:'~~':. \n ':::::' \n .::::.  \n'      ' " };
+
+/* 57 TERRAIN — scrolling heightmap ridges */
+const Terrain={ name:'Terrain', cat:'3d in ascii', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'rough',label:'rough',min:0.5,max:2.5,step:0.1,def:1.3}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.04*e.params.speed; },
+  height(x,z,r){ return Math.sin(x*0.2)*Math.cos(z*0.15)*r + Math.sin((x+z)*0.1)*r*0.6 + Math.sin(x*0.07-z*0.05)*r; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const horizon=e.rows*0.4; const r=e.params.rough; const zo=e.params.zoom;
+    // paint from far to near
+    const colH=new Float32Array(e.cols).fill(e.rows);
+    for(let depth=1;depth<40;depth++){ const z=depth+t*4; const scale=zo/(depth*0.12+1); for(let sx=0;sx<e.cols;sx++){ const wx=(sx-e.cols/2)*0.4*depth*0.08; const h=this.height(wx,z,r); const py=Math.round(horizon - h*6*scale + depth*0.6);
+        if(py>=0&&py<e.rows&&py<colH[sx]){ const t2=clamp(1-depth/40,0,1); const ch=shadeChar(ramp,0.3+t2*0.6); for(let yy=py;yy<colH[sx]&&yy<e.rows;yy++)e.grid.set(sx,yy,ch,COL3(0.3+t2*0.5)); colH[sx]=py; } } } },
+  icon:"         \n   .^.   \n  .' '.  \n .'   '. \n.' ^ . '.\n'.' '.' '\n#########\n#########\n#########" };
+
+/* 58 OCEAN — sine wave ocean surface with sun glints */
+const Ocean={ name:'Ocean', cat:'noise & fields', fps:30,
+  sliders:[{id:'swell',label:'swell',min:0.5,max:3,step:0.1,def:1.5},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.05*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const sw=e.params.swell; const sc=1/e.params.zoom;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const wv=Math.sin(x*0.15*sc+t)+Math.sin(x*0.07*sc-t*1.3+y*0.1)*sw+Math.cos(y*0.2*sc+t*0.5); const surface=Math.sin(wv); const t2=clamp((surface+1)/2,0,1); const ch=shadeChar(ramp,t2*0.5+ (y/e.rows)*0.4); if(ch!==' ')e.grid.set(x,y,ch,COL3(t2)); } },
+  icon:"~-~_-~-_~\n_~-~_-~-_\n~_-~~_-~-\n-~_-~_-~~\n~-~_-~~_-\n_-~~_-~-_\n~~_-~-_-~\n-_~~-~_-~\n~-_-~~_-~" };
+
+/* 59 AURORA — vertical shimmering curtains */
+const Aurora={ name:'Aurora', cat:'noise & fields', fps:30,
+  sliders:[{id:'bands',label:'bands',min:2,max:6,step:1,def:3},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.03*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const bands=e.params.bands; const zo=e.params.zoom;
+    for(let x=0;x<e.cols;x++){ let curtain=0; for(let b=0;b<bands;b++){ const cx=(Math.sin(t*0.5+b*2)*0.5+0.5)*e.cols; const d=Math.abs(x-cx); curtain+=Math.max(0,1-d/(8*zo)); }
+      for(let y=0;y<e.rows;y++){ const flick=Math.sin(y*0.3-t*3+x*0.2)*0.3+0.7; const fade=1-y/e.rows; const v=clamp(curtain*flick*fade,0,1); if(v>0.15){ const ch=shadeChar(ramp,v); e.grid.set(x,y,ch,COL3(v)); } } } },
+  icon:" | ||  | \n | || || \n|| || || \n|| ||| | \n|| || ||| \n | || || \n | || |  \n  | || | \n  | |  | " };
+
+/* 60 LIGHTNING — branching bolt that re-strikes */
+const Lightning={ name:'Lightning', cat:'physics', fps:30,
+  sliders:[{id:'branch',label:'branch',min:0.05,max:0.4,step:0.05,def:0.18},{id:'rate',label:'rate',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.bolts=[]; e.state.cool=0; },
+  strike(e){ const bolts=[]; const stack=[{x:e.cols/2+(Math.random()-0.5)*e.cols*0.3,y:0,life:1}]; let guard=0;
+    while(stack.length&&guard<2000){ guard++; const p=stack.pop(); if(p.y>=e.rows-1)continue; const nx=p.x+(Math.random()-0.5)*2.4, ny=p.y+1; bolts.push({x:nx,y:ny,life:p.life}); stack.push({x:nx,y:ny,life:p.life}); if(Math.random()<e.params.branch&&p.life>0.4)stack.push({x:nx+(Math.random()-0.5)*4,y:ny,life:p.life*0.6}); }
+    return bolts; },
+  update(e){ e.state.cool-=e.params.rate; if(e.state.cool<=0){ e.state.bolts=this.strike(e); e.state.flash=1; e.state.cool=18+Math.random()*20; } e.state.flash=Math.max(0,(e.state.flash||0)-0.08); for(const b of e.state.bolts)b.life-=0.02; e.state.bolts=e.state.bolts.filter(b=>b.life>0); },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; for(const b of e.state.bolts){ const col=b.life>0.6?'var(--hud)':'var(--ink)'; e.grid.set(b.x,b.y,ch,col); } },
+  icon:"   ._.   \n   |     \n  .'     \n .'      \n  '.     \n   '.    \n    '._  \n      '. \n       ' " };
+
+/* 61 SIERPINSKI — chaos-game triangle, points accumulating then resetting */
+const Sierpinski={ name:'Sierpinski', cat:'fractals', fps:60,
+  sliders:[{id:'rate',label:'rate',min:50,max:400,step:25,def:150},{id:'pts',label:'verts',min:3,max:6,step:1,def:3}],
+  setup(e){ e.state.acc=new Float32Array(e.cols*e.rows); e.state.x=0.5; e.state.y=0.5; e.state.C=e.cols; e.state.R=e.rows; e.state.np=e.params.pts; this.mkv(e); e.state.count=0; },
+  mkv(e){ const n=e.params.pts|0; e.state.verts=[]; for(let i=0;i<n;i++){ const a=-Math.PI/2+i*TAU/n; e.state.verts.push([0.5+Math.cos(a)*0.48,0.5+Math.sin(a)*0.48]); } },
+  update(e){ if(e.state.C!==e.cols||e.state.R!==e.rows||e.state.np!==e.params.pts)this.setup(e); const V=e.state.verts; const factor=e.params.pts<=3?0.5:0.6;
+    for(let s=0;s<(e.params.rate|0);s++){ const v=V[Math.floor(Math.random()*V.length)]; e.state.x+=(v[0]-e.state.x)*factor; e.state.y+=(v[1]-e.state.y)*factor; const px=(e.state.x*e.cols)|0, py=(e.state.y*e.rows)|0; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.state.acc[py*e.cols+px]+=1; e.state.count++; }
+    if(e.state.count>e.cols*e.rows*4)this.setup(e); },
+  draw(e){ const ramp=e.ramp(); const acc=e.state.acc,C=e.cols; for(let y=0;y<e.rows;y++)for(let x=0;x<C;x++){ const v=acc[y*C+x]; if(v>0){ const t=clamp(v/3,0,1); e.grid.set(x,y,shadeChar(ramp,0.3+t*0.7),COL3(0.4+t*0.5)); } } },
+  icon:"    #    \n   # #   \n  #   #  \n # # # # \n#       #\n## ## ## #\n#  #  #  #\n#### ####\n#########" };
+
+/* 62 HILBERT — space-filling curve drawing progressively */
+const Hilbert={ name:'Hilbert Curve', cat:'geometry', fps:60,
+  sliders:[{id:'order',label:'order',min:2,max:5,step:1,def:4},{id:'speed',label:'speed',min:1,max:20,step:1,def:8}],
+  setup(e){ e.state.order=e.params.order; e.state.pts=this.gen(e.params.order|0); e.state.i=0; e.state.drawn=[]; },
+  gen(order){ const n=1<<order; const pts=[]; for(let d=0;d<n*n;d++){ let rx,ry,t=d,x=0,y=0; for(let s=1;s<n;s*=2){ rx=1&(t/2); ry=1&(t^rx); if(ry===0){ if(rx===1){ x=s-1-x; y=s-1-y; } const tmp=x; x=y; y=tmp; } x+=s*rx; y+=s*ry; t=Math.floor(t/4); } pts.push([x/(n-1),y/(n-1)]); } return pts; },
+  update(e){ if(e.state.order!==e.params.order)this.setup(e); for(let s=0;s<(e.params.speed|0);s++){ e.state.i++; if(e.state.i>=e.state.pts.length){ e.state.i=0; e.state.drawn=[]; } e.state.drawn.push(e.state.pts[e.state.i]); } if(e.state.drawn.length>e.state.pts.length)e.state.drawn=e.state.drawn.slice(-e.state.pts.length); },
+  draw(e){ const ramp=e.ramp(); const sz=Math.min(e.cols,e.rows*2)*0.9*e.params.zoom; const ox=(e.cols-sz)/2, oy=(e.rows-sz*0.5)/2; const P=e.state.drawn; let prev=null;
+    for(let i=0;i<P.length;i++){ const x=ox+P[i][0]*sz, y=oy+P[i][1]*sz*0.5; if(prev){ const st=Math.max(1,Math.max(Math.abs(x-prev[0]),Math.abs(y-prev[1]))|0); for(let s=0;s<=st;s++){ const px=prev[0]+(x-prev[0])*s/st,py=prev[1]+(y-prev[1])*s/st; const t=i/P.length; e.grid.set(px,py,shadeChar(ramp,0.4+t*0.6),COL3(0.5+t*0.4)); } } prev=[x,y]; } },
+  icon:"#-# #-#  \n| | | |  \n# #-# #  \n|     |  \n#-#-#-#  \n  |   |  \n#-#-#-#  \n|     |  \n#-#-#-#  " };
+
+/* 63 KOCH — animated koch snowflake growing iterations */
+const Koch={ name:'Koch Snowflake', cat:'fractals', fps:30,
+  sliders:[{id:'iter',label:'iter',min:1,max:5,step:1,def:4},{id:'spin',label:'spin',min:0,max:1,step:0.1,def:0.3}],
+  setup(e){ e.state.t=0; e.state.it=-1; },
+  koch(pts,n){ if(n===0)return pts; const out=[]; for(let i=0;i<pts.length-1;i++){ const [x1,y1]=pts[i],[x2,y2]=pts[i+1]; const dx=(x2-x1)/3,dy=(y2-y1)/3; const ax=x1+dx,ay=y1+dy; const bx=x1+2*dx,by=y1+2*dy; const ang=Math.atan2(dy,dx)-Math.PI/3; const cx=ax+Math.cos(ang)*Math.hypot(dx,dy), cy=ay+Math.sin(ang)*Math.hypot(dx,dy); out.push([x1,y1],[ax,ay],[cx,cy],[bx,by]); } out.push(pts[pts.length-1]); return this.koch(out,n-1); },
+  update(e){ e.state.t+=e.params.spin*0.02; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.4*e.params.zoom; const it=e.params.iter|0;
+    let tri=[]; for(let i=0;i<=3;i++){ const a=-Math.PI/2+i*TAU/3+e.state.t; tri.push([Math.cos(a),Math.sin(a)]); }
+    const pts=this.koch(tri,it); let prev=null; for(let i=0;i<pts.length;i++){ const x=cx+pts[i][0]*R, y=cy+pts[i][1]*R*0.5; if(prev){ const st=Math.max(1,Math.max(Math.abs(x-prev[0]),Math.abs(y-prev[1]))|0); for(let s=0;s<=st;s++){ const px=prev[0]+(x-prev[0])*s/st,py=prev[1]+(y-prev[1])*s/st; e.grid.set(px,py,shadeChar(ramp,0.7),COL3(0.7)); } } prev=[x,y]; } },
+  icon:"   _^_   \n  \\   /  \n_ '. .' _\n \\.' './ \n <  +  > \n /.' '.\\ \n' .' '. '\n  /   \\  \n   '-'   " };
+
+/* 64 LSYSTEM — animated plant growth (L-system) */
+const Plant={ name:'L-System Plant', cat:'fractals', fps:30,
+  sliders:[{id:'angle',label:'angle',min:15,max:35,step:1,def:25},{id:'sway',label:'sway',min:0,max:2,step:0.1,def:0.8}],
+  setup(e){ e.state.t=0; e.state.s='X'; for(let i=0;i<5;i++)e.state.s=e.state.s.replace(/X/g,'F+[[X]-X]-F[-FX]+X').replace(/F/g,'FF'); },
+  update(e){ e.state.t+=0.03; },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const baseAng=(e.params.angle+Math.sin(e.state.t)*e.params.sway*4)*Math.PI/180; const step=Math.min(e.cols,e.rows*2)*0.012*e.params.zoom;
+    let x=e.cols/2,y=e.rows-1,ang=-Math.PI/2; const stack=[]; let drawn=0; const maxDraw=2500;
+    for(const c of e.state.s){ if(drawn>maxDraw)break; if(c==='F'){ const nx=x+Math.cos(ang)*step, ny=y+Math.sin(ang)*step*0.5; const st=Math.max(1,Math.max(Math.abs(nx-x),Math.abs(ny-y))|0); for(let s=0;s<=st;s++){ const px=x+(nx-x)*s/st,py=y+(ny-y)*s/st; e.grid.set(px,py,ch,'var(--ink)'); } x=nx;y=ny; drawn++; }
+      else if(c==='+')ang+=baseAng; else if(c==='-')ang-=baseAng; else if(c==='[')stack.push([x,y,ang]); else if(c===']'){ const s=stack.pop(); if(s){x=s[0];y=s[1];ang=s[2];} } } },
+  icon:"  \\ | /  \n \\ \\|/ / \n  \\\\|//  \n \\ \\|/ / \n  \\|||/  \n   \\|/   \n    |    \n    |    \n    |    " };
+
+/* 65 MAGNETIC — iron filings around moving dipoles */
+const Magnetic={ name:'Field Lines', cat:'physics', fps:30,
+  sliders:[{id:'poles',label:'poles',min:2,max:5,step:1,def:2},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.t=0; e.state.p=[]; const N=e.params.poles|0; for(let i=0;i<N;i++)e.state.p.push({ph:Math.random()*TAU,sp:0.3+Math.random()*0.5,q:i%2?1:-1}); },
+  update(e){ if(e.state.p.length!==(e.params.poles|0))this.setup(e); e.state.t+=0.02*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const ascii=e.charMode==='ascii'; const cx=e.cols/2,cy=e.rows/2; const poles=e.state.p.map((p,i)=>({x:cx+Math.cos(e.state.t*p.sp+p.ph)*e.cols*0.3,y:cy+Math.sin(e.state.t*p.sp+p.ph)*e.rows*0.3,q:p.q}));
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let fx=0,fy=0; for(const p of poles){ const dx=x-p.x,dy=(y-p.y)*2; const d2=dx*dx+dy*dy+1; const f=p.q/d2; fx+=dx*f; fy+=dy*f; } const mag=Math.hypot(fx,fy); const ang=Math.atan2(fy,fx); const t=clamp(mag*40,0,1); if(t>0.12){ let ch; if(ascii){ const dir=Math.abs(Math.cos(ang))>0.5?'-':'|'; ch=t>0.5?ramp[ramp.length-1]:dir; } else { ch=shadeChar(ramp,t); } e.grid.set(x,y,ch,COL3(t)); } } },
+  icon:"-~-.|.-~-\n~-./|\\.-~\n-./ | \\.-\n./  N  \\.\n|   |   |\n.\\  S  /.\n-.\\ | /.-\n~-.\\|/.-~\n-~-'|'-~-" };
+
+/* 66 PENROSE — animated penrose-ish rotating star tiling glow */
+const Penrose={ name:'Penrose Glow', cat:'noise & fields', fps:30,
+  sliders:[{id:'sym',label:'symmetry',min:5,max:10,step:1,def:5},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const t=e.state.t; const sym=e.params.sym; const sc=0.4/e.params.zoom;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=(x-cx)*sc,dy=(y-cy)*2*sc; let v=0; for(let k=0;k<sym;k++){ const a=k*Math.PI/sym+t; v+=Math.cos(dx*Math.cos(a)+dy*Math.sin(a)); } const tt=clamp((v/sym+1)/2,0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  icon:"=*.:|:.*=\n*.:/^\\:.*\n.:/ ^ \\:.\n:/ /^\\ \\:\n|^<-@->^|\n:\\ \\^/ /:\n.:\\ ^ /:.\n*.:\\^/:.*\n=*.:|:.*=" };
+
+/* 67 INTERFERENCE — moire from two drifting dot grids */
+const Moire={ name:'Moire', cat:'noise & fields', fps:30,
+  sliders:[{id:'freq',label:'freq',min:0.2,max:1.2,step:0.1,def:0.6},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const f=e.params.freq/e.params.zoom; const c1x=e.cols/2+Math.cos(t)*e.cols*0.2, c1y=e.rows/2+Math.sin(t)*e.rows*0.2; const c2x=e.cols/2-Math.cos(t*1.1)*e.cols*0.2, c2y=e.rows/2-Math.sin(t*1.1)*e.rows*0.2;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const r1=Math.hypot(x-c1x,(y-c1y)*2), r2=Math.hypot(x-c2x,(y-c2y)*2); const v=Math.sin(r1*f)*Math.sin(r2*f); const tt=clamp((v+1)/2,0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  icon:".:=*#*=:.\n:=*#@#*=:\n=*#@@@#*=\n*#@@@@@#*\n#@@@@@@@#\n*#@@@@@#*\n=*#@@@#*=\n:=*#@#*=:\n.:=*#*=:." };
+
+/* 68 PARTICLE TEXT — particles forming a pulsing ring/shape */
+const Orbit={ name:'Orbital', cat:'physics', fps:40,
+  sliders:[{id:'bodies',label:'bodies',min:2,max:6,step:1,def:3},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; e.state.tr=[]; e.state.b=[]; const N=e.params.bodies|0; for(let i=0;i<N;i++)e.state.b.push({r:0.3+i*0.25,sp:(1-i*0.15),ph:Math.random()*TAU}); },
+  update(e){ if(e.state.b.length!==(e.params.bodies|0))this.setup(e); e.state.t+=0.04*e.params.speed; const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.42*e.params.zoom;
+    e.state.cur=e.state.b.map(b=>{ const a=e.state.t*b.sp+b.ph; return [cx+Math.cos(a)*b.r*R, cy+Math.sin(a)*b.r*R*0.5]; }); for(const p of e.state.cur)e.state.tr.push(p); while(e.state.tr.length>300)e.state.tr.shift(); },
+  draw(e){ const ramp=e.ramp(); for(let i=0;i<e.state.tr.length;i++){ const [x,y]=e.state.tr[i]; const t=i/e.state.tr.length; e.grid.set(x,y,shadeChar(ramp,t*0.6),COL3(t*0.5)); } if(e.state.cur)for(const [x,y] of e.state.cur)e.grid.set(x,y,e.charMode==='ascii'?'@':ramp[ramp.length-1],'var(--hud)'); e.grid.set(e.cols/2,e.rows/2,ramp[ramp.length-1],'var(--hud)'); },
+  icon:"  .--.   \n .'  '.  \n/  ..  \\ \n| .@@. | \n| @  @ | \n| '@@' | \n\\  ''  / \n '....' \n  '--'   " };
+
+/* 69 PLINKO — particles falling through a peg field */
+const Plinko={ name:'Plinko', cat:'physics', fps:40,
+  sliders:[{id:'drop',label:'drop',min:1,max:6,step:1,def:2},{id:'gravity',label:'gravity',min:0.2,max:1.5,step:0.1,def:0.6}],
+  setup(e){ e.state.balls=[]; e.state.t=0; },
+  update(e){ if(Math.random()<0.15*e.params.drop)e.state.balls.push({x:e.cols/2+(Math.random()-0.5)*4,y:0,vx:0,vy:0}); const g=e.params.gravity*0.06; const spacing=4;
+    for(const b of e.state.balls){ b.vy+=g; b.y+=b.vy; b.x+=b.vx; b.vx*=0.9;
+      const row=Math.floor(b.y/spacing); const pegY=row*spacing; if(Math.abs(b.y-pegY)<1){ const off=(row%2)*spacing/2; const nearest=Math.round((b.x-off)/spacing)*spacing+off; if(Math.abs(b.x-nearest)<1.5){ b.vx+=(Math.random()<0.5?-1:1)*0.6; b.vy*=0.6; } }
+      if(b.x<0||b.x>=e.cols)b.vx*=-1; }
+    e.state.balls=e.state.balls.filter(b=>b.y<e.rows); },
+  draw(e){ const ramp=e.ramp(); const spacing=4; const ascii=e.charMode==='ascii'; const ball=ascii?'@':ramp[ramp.length-1]; const peg=ascii?'.':shadeChar(ramp,0.25);
+    for(let row=1;row*spacing<e.rows-2;row++){ const off=(row%2)*spacing/2; for(let px=off;px<e.cols;px+=spacing)e.grid.set(px,row*spacing,peg,'var(--dim)'); }
+    for(const b of e.state.balls)e.grid.set(b.x,b.y,ball,'var(--hud)'); },
+  icon:". . . . .\n  @  .   \n . . . . \n   @     \n. . @ . .\n  .  @   \n . . . . \n @ . . @ \n.@.@.@.@." };
+
+/* 70 PULSE — concentric expanding rings (sonar) */
+const Sonar={ name:'Sonar', cat:'noise & fields', fps:30,
+  sliders:[{id:'rate',label:'rate',min:0.2,max:2,step:0.1,def:0.8},{id:'sources',label:'pings',min:1,max:4,step:1,def:2}],
+  setup(e){ e.state.rings=[]; e.state.cool=0; e.state.pts=[]; const N=e.params.sources|0; for(let i=0;i<N;i++)e.state.pts.push({x:Math.random()*e.cols,y:Math.random()*e.rows,ph:Math.random()*40}); },
+  update(e){ if(e.state.pts.length!==(e.params.sources|0))this.setup(e); for(const p of e.state.pts)p.ph+=e.params.rate; },
+  draw(e){ const ramp=e.ramp(); const sc=1/e.params.zoom; for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let v=0; for(const p of e.state.pts){ const r=Math.hypot(x-p.x,(y-p.y)*2)*sc; const wave=Math.sin(r*0.6 - p.ph); const env=Math.max(0,1-Math.abs(((r - p.ph*1.5)%30))/4); v=Math.max(v, env*(wave*0.5+0.5)); } if(v>0.2){ const ch=shadeChar(ramp,v); e.grid.set(x,y,ch,COL3(v)); } } },
+  icon:"  .---.  \n .'   '. \n/  .-.  \\\n| ( @ ) |\n\\  '-'  /\n '.   .' \n  '---'  \n .-----. \n'       '" };
+
+/* 71 BITFIELD — scrolling binary rain matrix style */
+const Bits={ name:'Data Stream', cat:'flow & particles', fps:20,
+  sliders:[{id:'density',label:'columns',min:0.3,max:1,step:0.05,def:0.7},{id:'speed',label:'speed',min:0.3,max:2,step:0.1,def:1}],
+  setup(e){ e.state.cols=[]; for(let x=0;x<e.cols;x++)e.state.cols.push({active:Math.random()<e.params.density,y:Math.random()*e.rows,len:5+Math.random()*12,sp:0.3+Math.random()*0.7}); e.state.C=e.cols; e.state.dens=e.params.density; },
+  update(e){ if(e.state.C!==e.cols||Math.abs(e.state.dens-e.params.density)>0.001)this.setup(e); for(const c of e.state.cols){ if(!c.active)continue; c.y+=c.sp*e.params.speed; if(c.y-c.len>e.rows){ c.y=0; c.len=5+Math.random()*12; } } },
+  draw(e){ const ramp=e.ramp(); for(let x=0;x<e.cols;x++){ const c=e.state.cols[x]; if(!c.active)continue; for(let i=0;i<c.len;i++){ const y=Math.floor(c.y-i); if(y<0||y>=e.rows)continue; const t=1-i/c.len; const ch=e.charMode==='ascii'?((Math.floor(x+y+e.frame*0.5))%2?'1':'0'):shadeChar(ramp,t); const col=i===0?'var(--hud)':t>0.4?'var(--ink)':'var(--dim)'; e.grid.set(x,y,ch,col); } } },
+  icon:"1 0 1 0 1\n0 1 0 1 0\n1 1 0 0 1\n0 0 1 1 0\n1 0 1 0 1\n  1   0  \n0 1 0 1 0\n1 0   0 1\n0 1 0 1 0" };
+
+/* 72 PIPES — growing 3d-ish pipes (windows screensaver) */
+const Pipes={ name:'Pipes', cat:'flow & particles', fps:24,
+  sliders:[{id:'pipes',label:'pipes',min:1,max:5,step:1,def:3},{id:'speed',label:'speed',min:1,max:6,step:1,def:2}],
+  dims(e){ return {C:e.cols,R:e.rows}; },
+  setup(e){ e.state.grid=new Uint8Array(e.cols*e.rows); e.state.C=e.cols; e.state.R=e.rows; e.state.p=[]; const N=e.params.pipes|0; for(let i=0;i<N;i++)e.state.p.push(this.spawn(e)); e.state.np=N; e.state.fill=0; },
+  spawn(e){ return {x:(Math.random()*e.cols)|0,y:(Math.random()*e.rows)|0,dir:Math.floor(Math.random()*4)}; },
+  update(e){ if(e.state.C!==e.cols||e.state.R!==e.rows||e.state.np!==(e.params.pipes|0))this.setup(e); const g=e.state.grid,C=e.cols,R=e.rows;
+    for(let s=0;s<(e.params.speed|0);s++)for(const p of e.state.p){ if(Math.random()<0.2)p.dir=Math.floor(Math.random()*4); const d=[[0,-1],[1,0],[0,1],[-1,0]][p.dir]; p.x=(p.x+d[0]+C)%C; p.y=(p.y+d[1]+R)%R; g[p.y*C+p.x]=1+(p.dir%2); e.state.fill++; }
+    if(e.state.fill>C*R*0.6){ e.state.grid=new Uint8Array(C*R); e.state.fill=0; } },
+  draw(e){ const ramp=e.ramp(); const g=e.state.grid,C=e.cols; for(let y=0;y<e.rows;y++)for(let x=0;x<C;x++){ const v=g[y*C+x]; if(v){ const ch=e.charMode==='ascii'?(v===1?'|':'-'):ramp[ramp.length-1]; e.grid.set(x,y,ch,'var(--ink)'); } } },
+  icon:" --.  .-- \n   |  |   \n .-+--+-. \n |      | \n-+--.   +-\n    |   | \n .--+---' \n |        \n-'   .----" };
+
+/* 73 BLACKHOLE — accretion disk swirling into center */
+const BlackHole={ name:'Black Hole', cat:'3d in ascii', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'disk',label:'disk',min:0.5,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; e.state.p=[]; for(let i=0;i<400;i++)e.state.p.push({a:Math.random()*TAU,r:0.3+Math.random()*0.7}); },
+  update(e){ e.state.t+=0.02*e.params.speed; for(const p of e.state.p){ p.a+=0.04/(p.r+0.1)*e.params.speed; p.r-=0.002; if(p.r<0.08){ p.r=0.6+Math.random()*0.4; p.a=Math.random()*TAU; } } },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.42*e.params.disk*e.params.zoom; for(const p of e.state.p){ const px=Math.round(cx+Math.cos(p.a)*p.r*R), py=Math.round(cy+Math.sin(p.a)*p.r*R*0.5); const t=clamp(1-p.r,0,1); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,t),COL3(t)); }
+    // event horizon
+    for(let a=0;a<TAU;a+=0.3){ const px=Math.round(cx+Math.cos(a)*0.1*R), py=Math.round(cy+Math.sin(a)*0.1*R*0.5); e.grid.set(px,py,' ',null); } },
+  icon:" .:=*=:. \n.:*#@#*:.\n:*#@ @#*:\n=#@   @#=\n*@  .  @*\n=#@   @#=\n:*#@ @#*:\n.:*#@#*:.\n '.:=:.' " };
+
+/* 74 RUBIK — rotating 3d cube faces (colored facets) */
+const RubikSpin={ name:'Cube Lattice', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spin',label:'spin',min:0.005,max:0.05,step:0.005,def:0.02},{id:'grid',label:'grid',min:2,max:4,step:1,def:3}],
+  setup(e){ e.state.ax=0.5; e.state.ay=0.5; },
+  update(e){ e.state.ax+=e.params.spin; e.state.ay+=e.params.spin*0.7; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.12*e.params.zoom; const ax=e.state.ax,ay=e.state.ay; const n=e.params.grid;
+    const rot=(p)=>{ let [x,y,z]=p; let y1=y*Math.cos(ax)-z*Math.sin(ax), z1=y*Math.sin(ax)+z*Math.cos(ax); let x1=x*Math.cos(ay)-z1*Math.sin(ay); z1=x*Math.sin(ay)+z1*Math.cos(ay); return [x1,y1,z1]; };
+    const dots=[]; for(let i=0;i<=n;i++)for(let j=0;j<=n;j++)for(let k=0;k<=n;k++){ if(i>0&&i<n&&j>0&&j<n&&k>0&&k<n)continue; const x=(i/n-0.5)*2,y=(j/n-0.5)*2,z=(k/n-0.5)*2; const [rx,ry,rz]=rot([x,y,z]); const d=4/(4+rz); dots.push([cx+rx*sc*d, cy+ry*sc*d*0.5, rz]); }
+    dots.sort((a,b)=>a[2]-b[2]); for(const [x,y,z] of dots){ const t=(z+2)/4; e.grid.set(x,y,shadeChar(ramp,0.3+t*0.7),COL3(0.4+t*0.5)); } },
+  icon:" #-#-#   \n/|/|/|   \n#-#-#|   \n|#|#|#   \n#-#-#|   \n|#|#|/   \n#-#-#    \n         \n         " };
+
+/* 75 SUPERSHAPE — animated superformula morph */
+const Super={ name:'Superformula', cat:'geometry', fps:40,
+  sliders:[{id:'m',label:'m',min:3,max:12,step:1,def:6},{id:'speed',label:'morph',min:0.1,max:1.5,step:0.1,def:0.6}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02*e.params.speed; },
+  sf(a,m,n1,n2,n3){ const t1=Math.pow(Math.abs(Math.cos(m*a/4)),n2); const t2=Math.pow(Math.abs(Math.sin(m*a/4)),n3); return Math.pow(t1+t2,-1/n1); },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.4*e.params.zoom; const t=e.state.t; const m=e.params.m; const n1=0.3+Math.sin(t)*0.2+0.5,n2=0.3+Math.cos(t*0.7)+1,n3=0.3+Math.sin(t*1.3)+1;
+    let prev=null; for(let i=0;i<=200;i++){ const a=i/200*TAU; const r=this.sf(a,m,n1,n2,n3); const x=cx+Math.cos(a)*r*R, y=cy+Math.sin(a)*r*R*0.5; if(prev&&isFinite(x)&&isFinite(y)){ const st=Math.max(1,Math.max(Math.abs(x-prev[0]),Math.abs(y-prev[1]))|0); for(let s=0;s<=st;s++){ const px=prev[0]+(x-prev[0])*s/st,py=prev[1]+(y-prev[1])*s/st; const tt=i/200; e.grid.set(px,py,shadeChar(ramp,0.5+tt*0.5),COL3(0.6)); } } if(isFinite(x)&&isFinite(y))prev=[x,y]; } },
+  icon:"  .-^-.  \n .'/|\\'. \n/ / | \\ \\\n|<--+-->| \n\\ \\ | / /\n '.\\|/.' \n  '-v-'  \n .-' '-. \n'       '" };
+
+/* ===== 76-100 : all self-animating. 2 sliders + universal zoom each. ===== */
+
+/* 76 LAVA LAMP — rising/falling blobs */
+const Lava={ name:'Lava Lamp', cat:'noise & fields', fps:30,
+  sliders:[{id:'blobs',label:'blobs',min:3,max:9,step:1,def:5},{id:'speed',label:'speed',min:0.2,max:1.5,step:0.1,def:0.6}],
+  setup(e){ e.state.b=[]; const N=e.params.blobs|0; for(let i=0;i<N;i++)e.state.b.push({x:Math.random()*e.cols,y:Math.random()*e.rows,r:5+Math.random()*5,vy:(Math.random()-0.5)*0.3,ph:Math.random()*TAU}); },
+  update(e){ if(e.state.b.length!==(e.params.blobs|0))this.setup(e); const sp=e.params.speed; for(const b of e.state.b){ b.ph+=0.02*sp; b.y+=Math.sin(b.ph)*sp*0.6; b.x+=Math.cos(b.ph*0.7)*sp*0.2; if(b.y<0)b.y+=e.rows; if(b.y>=e.rows)b.y-=e.rows; if(b.x<0)b.x+=e.cols; if(b.x>=e.cols)b.x-=e.cols; } },
+  draw(e){ const ramp=e.ramp(); const zo=e.params.zoom; for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let v=0; for(const b of e.state.b){ const dx=x-b.x,dy=(y-b.y)*2; v+=(b.r*b.r*zo)/(dx*dx+dy*dy+1); } const t=clamp(v,0,1); if(t>0.35){ const ch=shadeChar(ramp,t); e.grid.set(x,y,ch,COL3(t)); } } },
+  icon:"  .oo.   \n .o@@o.  \n.o@@@o.  \n.o@@o..  \n .oo. .o.\n .  .o@@o\n.o. o@@o.\no@@o.o@@o\n.oo@o.oo." };
+
+/* 77 SMOKE — rising turbulent smoke column */
+const Smoke={ name:'Smoke', cat:'flow & particles', fps:30,
+  sliders:[{id:'rate',label:'rate',min:2,max:12,step:1,def:6},{id:'turb',label:'turb',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.p=[]; e.state.t=0; },
+  update(e){ e.state.t+=0.03; for(let i=0;i<(e.params.rate|0);i++)e.state.p.push({x:e.cols/2+(Math.random()-0.5)*3,y:e.rows-1,life:1,vx:0}); const tb=e.params.turb;
+    for(const p of e.state.p){ p.vx+=Math.sin(p.y*0.3+e.state.t*2)*0.15*tb; p.x+=p.vx; p.y-=0.5+ (1-p.life)*0.3; p.life-=0.012; p.vx*=0.92; } e.state.p=e.state.p.filter(p=>p.life>0&&p.y>0); },
+  draw(e){ const ramp=e.ramp(); for(const p of e.state.p){ const t=p.life*0.7; const ch=shadeChar(ramp,t); e.grid.set(p.x,p.y,ch,COL3(t)); } },
+  icon:"  .::.   \n .:~~:.  \n:~-..~:. \n .:~~:.~.\n.~-..-:. \n .:~~:.  \n  :~~:   \n  .::.   \n   ::    " };
+
+/* 78 EQUALIZER — radial audio bars */
+const RadialEq={ name:'Radial EQ', cat:'signal', fps:40,
+  sliders:[{id:'bars',label:'bars',min:12,max:48,step:4,def:28},{id:'speed',label:'speed',min:0.5,max:3,step:0.1,def:1.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.06*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const bars=e.params.bars|0; const baseR=Math.min(e.cols,e.rows*2)*0.12*e.params.zoom; const t=e.state.t;
+    for(let b=0;b<bars;b++){ const a=b/bars*TAU; const amp=(Math.sin(t+b*0.6)*0.4+Math.sin(t*1.7+b)*0.3+0.5); const len=baseR+amp*baseR*2; for(let r=baseR;r<len;r+=0.6){ const px=Math.round(cx+Math.cos(a)*r), py=Math.round(cy+Math.sin(a)*r*0.5); const tt=(r-baseR)/(len-baseR); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.4+tt*0.6),COL3(0.5+tt*0.4)); } } },
+  icon:"  | | |  \n \\ | | / \n\\ \\| |/ /\n-- -+- --\n/ /| |\\ \\\n / | | \\ \n  | | |  \n  | | |  \n  | | |  " };
+
+/* 79 WAVEFORM — scrolling oscilloscope waveform */
+const Waveform={ name:'Waveform', cat:'signal', fps:40,
+  sliders:[{id:'harmonics',label:'harm',min:1,max:5,step:1,def:3},{id:'speed',label:'speed',min:0.5,max:3,step:0.1,def:1.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.1*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const mid=e.rows/2; const amp=(e.rows/2.5)/e.params.zoom; const h=e.params.harmonics; const t=e.state.t;
+    let prev=null; for(let x=0;x<e.cols;x++){ let v=0; for(let k=1;k<=h;k++)v+=Math.sin(x*0.2*k+t*k)/k; const y=mid+v*amp; if(prev!==null){ const a=Math.min(prev,y)|0,b=Math.max(prev,y)|0; for(let yy=a;yy<=b;yy++){ const d=Math.abs(yy-y); e.grid.set(x,yy, d<1?ch:shadeChar(ramp,0.4), d<1?'var(--hud)':'var(--ink)'); } } prev=y; } },
+  icon:"    .    \n   / \\   \n  /   \\  \n /     \\ \n/       \\\n         \n\\       /\n \\     / \n  \\.../  " };
+
+/* 80 MANDALA — rotating symmetric pattern */
+const Mandala={ name:'Mandala', cat:'geometry', fps:30,
+  sliders:[{id:'petals',label:'petals',min:6,max:16,step:1,def:10},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const t=e.state.t; const p=e.params.petals; const sc=1/e.params.zoom;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=(x-cx)*sc,dy=(y-cy)*2*sc; const r=Math.hypot(dx,dy); const a=Math.atan2(dy,dx); const v=Math.sin(p*a+t)*Math.sin(r*0.4-t)+Math.cos(p*a*0.5-t); const tt=clamp((v+1)/2,0,1)*clamp(1-r/(Math.max(e.cols,e.rows)*0.5),0,1); if(tt>0.25){ const ch=shadeChar(ramp,tt); e.grid.set(x,y,ch,COL3(tt)); } } },
+  icon:" .*|*.   \n.*\\|/*.  \n*--+--*  \n.*/|\\*.  \n .*|*.   \n*--+--*  \n.*\\|/*.  \n .*|*.   \n  '*'    " };
+
+/* 81 GRAVITY WELLS — particles orbiting attractors */
+const Wells={ name:'Gravity Wells', cat:'physics', fps:40,
+  sliders:[{id:'count',label:'dust',min:100,max:600,step:20,def:300},{id:'wells',label:'wells',min:1,max:4,step:1,def:2}],
+  setup(e){ e.state.p=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.p.push({x:Math.random()*e.cols,y:Math.random()*e.rows,vx:(Math.random()-0.5)*0.5,vy:(Math.random()-0.5)*0.5}); e.state.t=0; e.state.w=[]; const W=e.params.wells|0; for(let i=0;i<W;i++)e.state.w.push({ph:Math.random()*TAU,sp:0.3+Math.random()*0.4}); e.state.np=N; e.state.nw=W; },
+  update(e){ if((e.params.count|0)!==e.state.np||(e.params.wells|0)!==e.state.nw)this.setup(e); e.state.t+=0.02; const cx=e.cols/2,cy=e.rows/2; const wells=e.state.w.map(w=>({x:cx+Math.cos(e.state.t*w.sp+w.ph)*e.cols*0.25,y:cy+Math.sin(e.state.t*w.sp+w.ph)*e.rows*0.25}));
+    for(const p of e.state.p){ for(const w of wells){ const dx=w.x-p.x,dy=(w.y-p.y); const d2=dx*dx+dy*dy*4+4; const f=0.4/d2; p.vx+=dx*f; p.vy+=dy*f; } p.vx*=0.99; p.vy*=0.99; p.x+=p.vx; p.y+=p.vy; if(p.x<0)p.x+=e.cols; if(p.x>=e.cols)p.x-=e.cols; if(p.y<0)p.y+=e.rows; if(p.y>=e.rows)p.y-=e.rows; } e.state.wells=wells; },
+  draw(e){ const ramp=e.ramp(); for(const p of e.state.p){ const sp=Math.hypot(p.vx,p.vy); const t=clamp(sp,0,1); e.grid.set(p.x,p.y,shadeChar(ramp,0.3+t*0.7),COL3(0.4+t*0.5)); } if(e.state.wells)for(const w of e.state.wells)e.grid.set(w.x,w.y,e.charMode==='ascii'?'@':shadeChar(ramp,1),'var(--hud)'); },
+  icon:" . :.. . \n. .:@:. .\n :.:::.: \n.::@@@::.\n:::@@@:::\n.::@@@::.\n :.:::.: \n. .:@:. .\n . :.. . " };
+
+/* 82 CELLULAR FOAM — voronoi-ish bubbling foam */
+const Foam={ name:'Foam', cat:'noise & fields', fps:24,
+  sliders:[{id:'cells',label:'cells',min:6,max:24,step:2,def:14},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.s=[]; const N=e.params.cells|0; for(let i=0;i<N;i++)e.state.s.push({x:Math.random()*e.cols,y:Math.random()*e.rows,ph:Math.random()*TAU,sp:0.3+Math.random()*0.5}); },
+  update(e){ if(e.state.s.length!==(e.params.cells|0))this.setup(e); e.state.t=(e.state.t||0)+0.02*e.params.speed; for(const s of e.state.s){ s.ph+=0.02*e.params.speed; } },
+  draw(e){ const ramp=e.ramp(); const sites=e.state.s.map(s=>({x:s.x+Math.cos(s.ph)*4,y:s.y+Math.sin(s.ph)*4})); for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let d1=1e9,d2=1e9; for(const s of sites){ const dx=x-s.x,dy=(y-s.y)*2; const dd=dx*dx+dy*dy; if(dd<d1){d2=d1;d1=dd;}else if(dd<d2)d2=dd; } const edge=Math.sqrt(d2)-Math.sqrt(d1); const t=clamp(1-edge/3,0,1); if(t>0.3){ const ch=shadeChar(ramp,t); e.grid.set(x,y,ch,COL3(t)); } } },
+  icon:".-.  .-. \n( o )( o )\n '-'  '-' \n.-. .-. .-\n o |( o )| \n'-' '-' '-\n.-. .-. .-\n( o )( o )\n '-'  '-' " };
+
+/* 83 RAINDROPS — ripples on water from random drops */
+const Raindrops={ name:'Raindrops', cat:'noise & fields', fps:30,
+  sliders:[{id:'rate',label:'rate',min:0.1,max:1,step:0.05,def:0.35},{id:'decay',label:'decay',min:10,max:40,step:2,def:22}],
+  setup(e){ e.state.drops=[]; },
+  update(e){ if(Math.random()<e.params.rate)e.state.drops.push({x:Math.random()*e.cols,y:Math.random()*e.rows,age:0}); for(const d of e.state.drops)d.age+=0.6; e.state.drops=e.state.drops.filter(d=>d.age<e.params.decay); },
+  draw(e){ const ramp=e.ramp(); const sc=1/e.params.zoom; for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ let v=0; for(const d of e.state.drops){ const r=Math.hypot(x-d.x,(y-d.y)*2)*sc; const ring=Math.abs(r-d.age); const fade=1-d.age/e.params.decay; if(ring<2)v=Math.max(v,(1-ring/2)*fade); } if(v>0.2){ const ch=shadeChar(ramp,v); e.grid.set(x,y,ch,COL3(v)); } } },
+  icon:" .   .-. \n.-. ( o )\n( o ) '-'\n '-'  .  \n  .  .-. \n .-.( o )\n( o )'-' \n '-'   . \n  .  .-. " };
+
+/* 84 DRAGON CURVE — animated dragon fractal */
+const Dragon={ name:'Dragon Curve', cat:'fractals', fps:30,
+  sliders:[{id:'iter',label:'iter',min:6,max:13,step:1,def:11},{id:'spin',label:'spin',min:0,max:1,step:0.1,def:0.2}],
+  setup(e){ e.state.t=0; let seq=[1]; for(let i=0;i<(e.params.iter|0);i++){ const rev=seq.slice().reverse().map(v=>v?0:1); seq=seq.concat([1],rev); } e.state.seq=seq; e.state.it=e.params.iter; },
+  update(e){ if(e.state.it!==e.params.iter)this.setup(e); e.state.t+=e.params.spin*0.01; },
+  draw(e){ const ramp=e.ramp(); let x=0,y=0,dir=0; const pts=[[0,0]]; for(const turn of e.state.seq){ dir=(dir+(turn?1:3))%4; const d=[[1,0],[0,1],[-1,0],[0,-1]][dir]; x+=d[0]; y+=d[1]; pts.push([x,y]); }
+    let mnx=1e9,mxx=-1e9,mny=1e9,mxy=-1e9; for(const [px,py] of pts){ mnx=Math.min(mnx,px);mxx=Math.max(mxx,px);mny=Math.min(mny,py);mxy=Math.max(mxy,py); }
+    const w=mxx-mnx||1,h=mxy-mny||1; const sc=Math.min((e.cols*0.85)/w,(e.rows*0.85)/(h*0.5))*e.params.zoom; const ox=e.cols/2,oy=e.rows/2; const ca=Math.cos(e.state.t),sa=Math.sin(e.state.t);
+    for(let i=0;i<pts.length;i++){ let px=(pts[i][0]-(mnx+mxx)/2)*sc, py=(pts[i][1]-(mny+mxy)/2)*sc*0.5; const rx=px*ca-py*sa, ry=px*sa+py*ca; const t=i/pts.length; e.grid.set(ox+rx,oy+ry,shadeChar(ramp,0.4+t*0.6),COL3(0.5+t*0.4)); } },
+  icon:"  _      \n |_|_    \n   |_|   \n _|     \n|_|_  _  \n  |_||_| \n   _| |  \n  |_|_   \n    |_|  " };
+
+/* 85 NEURAL — pulsing node network */
+const Neural={ name:'Neural Net', cat:'flow & particles', fps:30,
+  sliders:[{id:'nodes',label:'nodes',min:8,max:24,step:2,def:14},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.n=[]; const N=e.params.nodes|0; for(let i=0;i<N;i++)e.state.n.push({x:Math.random()*e.cols,y:Math.random()*e.rows,vx:(Math.random()-0.5)*0.3,vy:(Math.random()-0.5)*0.3,ph:Math.random()*TAU}); e.state.t=0; e.state.nn=N; },
+  update(e){ if((e.params.nodes|0)!==e.state.nn)this.setup(e); e.state.t+=0.05*e.params.speed; for(const n of e.state.n){ n.x+=n.vx*e.params.speed; n.y+=n.vy*e.params.speed; n.ph+=0.1*e.params.speed; if(n.x<0||n.x>=e.cols)n.vx*=-1; if(n.y<0||n.y>=e.rows)n.vy*=-1; } },
+  draw(e){ const ramp=e.ramp(); const N=e.state.n; const linkD=Math.min(e.cols,e.rows)*0.4;
+    for(let i=0;i<N.length;i++)for(let j=i+1;j<N.length;j++){ const a=N[i],b=N[j]; const d=Math.hypot(a.x-b.x,(a.y-b.y)*2); if(d<linkD){ const st=Math.max(1,Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y))|0); const pulse=Math.sin(e.state.t+i)*0.5+0.5; for(let s=0;s<=st;s++){ const px=a.x+(b.x-a.x)*s/st,py=a.y+(b.y-a.y)*s/st; e.grid.set(px,py,shadeChar(ramp,0.2+pulse*0.2),'var(--dim)'); } } }
+    for(const n of N){ const pulse=Math.sin(n.ph)*0.5+0.5; const bright=pulse>0.5; let ch; if(e.charMode==='ascii'){ ch=bright?'@':'o'; } else { ch=bright?shadeChar(ramp,1):shadeChar(ramp,0.5); } e.grid.set(n.x,n.y, ch, pulse>0.6?'var(--hud)':'var(--ink)'); } },
+  icon:" o---o   \n/|\\ /|   \no-+-o |  \n|/ \\|/   \no---o-o  \n \\ /| |  \n  o-+-o  \n   |/    \n   o     " };
+
+/* 86 PARTICLE GALAXY COLLISION — two swirling clusters */
+const Collision={ name:'Galaxy Merge', cat:'3d in ascii', fps:40,
+  sliders:[{id:'stars',label:'stars',min:200,max:800,step:50,def:400},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; e.state.p=[]; const N=e.params.stars|0; for(let i=0;i<N;i++){ const g=i<N/2?0:1; const r=Math.random()*0.4; const a=Math.random()*TAU; e.state.p.push({g,r,a}); } e.state.np=N; },
+  update(e){ if((e.params.stars|0)!==e.state.np)this.setup(e); e.state.t+=0.01*e.params.speed; for(const p of e.state.p)p.a+=0.03/(p.r+0.1)*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const cx=e.cols/2,cy=e.rows/2; const sep=Math.max(0,Math.cos(t*0.3))*e.cols*0.25; const R=Math.min(e.cols,e.rows*2)*0.3*e.params.zoom;
+    for(const p of e.state.p){ const gcx=cx+(p.g?sep:-sep), gcy=cy; const px=Math.round(gcx+Math.cos(p.a)*p.r*R), py=Math.round(gcy+Math.sin(p.a)*p.r*R*0.5); const tt=1-p.r/0.4; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.3+tt*0.6),COL3(0.4+tt*0.5)); } },
+  icon:" .:. .:. \n.:@:.:@:.\n:@@@:@@@:\n.:@:.:@:.\n .:.:.:. \n.:@:.:@:.\n:@@@:@@@:\n.:@:.:@:.\n .:. .:. " };
+
+/* 87 CLOTH — waving flag/cloth grid */
+const Cloth={ name:'Waving Cloth', cat:'physics', fps:40,
+  sliders:[{id:'wind',label:'wind',min:0.2,max:2,step:0.1,def:1},{id:'res',label:'weave',min:8,max:20,step:2,def:14}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.06*e.params.wind; },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const t=e.state.t; const n=e.params.res; const w=e.cols*0.8*e.params.zoom, h=e.rows*0.7*e.params.zoom; const ox=(e.cols-w)/2, oy=(e.rows-h)/2;
+    for(let i=0;i<=n;i++)for(let j=0;j<=n;j++){ const u=i/n,v=j/n; const wave=Math.sin(u*4+t)*(u)*3 + Math.sin(v*3+t*1.3)*u*1.5; const x=ox+u*w; const y=oy+v*h + wave; const px=Math.round(x), py=Math.round(y); const sh=0.4+ (Math.sin(u*4+t)*0.5+0.5)*0.5; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,sh),COL3(sh)); } },
+  icon:"#~-_~-_~-\n#~-_~-_~-\n#~~--__~~\n#~~--__~~\n#--__~~--\n#--__~~--\n#__~~--__\n#__~~--__\n#~-_~-_~-" };
+
+/* 88 TYPEWRITER RAIN — falling characters that pile */
+const CharRain={ name:'Glyph Cascade', cat:'flow & particles', fps:30,
+  sliders:[{id:'rate',label:'rate',min:1,max:8,step:1,def:3},{id:'speed',label:'speed',min:0.3,max:2,step:0.1,def:1}],
+  setup(e){ e.state.p=[]; e.state.pile=new Int8Array(e.cols).fill(e.rows); e.state.C=e.cols; },
+  update(e){ if(e.state.C!==e.cols){ this.setup(e); } for(let i=0;i<(e.params.rate|0);i++){ const x=(Math.random()*e.cols)|0; e.state.p.push({x,y:0,g:Math.floor(Math.random()*90)}); }
+    for(const p of e.state.p){ p.y+=e.params.speed; if(p.y>=e.state.pile[p.x]-1){ p.y=e.state.pile[p.x]-1; p.landed=true; e.state.pile[p.x]=Math.max(0,p.y); } }
+    e.state.p=e.state.p.filter(p=>!p.landed||Math.random()>0.02);
+    if(e.state.pile.every(v=>v<2)){ e.state.pile=new Int8Array(e.cols).fill(e.rows); e.state.p=[]; } },
+  draw(e){ const ramp=e.ramp(); const glyphs='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&*+=<>'; for(const p of e.state.p){ const ch=e.charMode==='ascii'?glyphs[p.g%glyphs.length]:ramp[ramp.length-1]; const col=p.landed?'var(--dim)':'var(--hud)'; e.grid.set(p.x,p.y,ch,col); } },
+  icon:"A C  E  G\n  B D F  \nH   K  M \n J@L N P \nQRS U W Y\nX#Z$3 5 7\n12@456789\n@#$%@#$%@\n#########" };
+
+/* 89 SPIRAL GALAXY ARMS — log spiral with star density */
+const Spiral={ name:'Log Spiral', cat:'geometry', fps:40,
+  sliders:[{id:'arms',label:'arms',min:1,max:5,step:1,def:2},{id:'tight',label:'tight',min:0.1,max:0.5,step:0.05,def:0.25}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.45*e.params.zoom; const arms=e.params.arms; const k=e.params.tight; const t=e.state.t;
+    for(let arm=0;arm<arms;arm++){ const base=arm/arms*TAU; for(let s=0;s<200;s++){ const th=s*0.08; const r=Math.exp(k*th)*0.04; if(r>1)break; const a=th+base+t; const px=Math.round(cx+Math.cos(a)*r*R), py=Math.round(cy+Math.sin(a)*r*R*0.5); const tt=1-r; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.4+tt*0.6),COL3(0.5+tt*0.4)); } } },
+  icon:"  .---.  \n .'   '. \n/  .-.  \\\n| .' '. |\n| | @ . |\n| '._.' |\n \\     . \n '.___.' \n   '''   " };
+
+/* 90 BREATHING GRID — pulsing dot matrix */
+const BreatheGrid={ name:'Pulse Matrix', cat:'noise & fields', fps:30,
+  sliders:[{id:'spacing',label:'spacing',min:2,max:6,step:1,def:3},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.05*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const sp=e.params.spacing; const cx=e.cols/2,cy=e.rows/2; const t=e.state.t; const sc=1/e.params.zoom;
+    for(let y=0;y<e.rows;y+=sp)for(let x=0;x<e.cols;x+=sp){ const r=Math.hypot(x-cx,(y-cy)*2)*sc; const v=Math.sin(r*0.3-t*2)*0.5+0.5; const ch=shadeChar(ramp,v); if(ch!==' ')e.grid.set(x,y,ch,COL3(v)); } },
+  icon:". . . . .\n . o o . \n. o O o .\n o O@O o \n. o O o .\n . o o . \n. . . . .\n . . . . \n. . . . ." };
+
+/* 91 FIREFLIES — wandering blinking points */
+const Fireflies={ name:'Fireflies', cat:'flow & particles', fps:30,
+  sliders:[{id:'count',label:'flies',min:20,max:120,step:10,def:50},{id:'speed',label:'speed',min:0.1,max:1,step:0.1,def:0.4}],
+  setup(e){ e.state.f=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.f.push({x:Math.random()*e.cols,y:Math.random()*e.rows,ph:Math.random()*TAU,dir:Math.random()*TAU}); e.state.nf=N; },
+  update(e){ if((e.params.count|0)!==e.state.nf)this.setup(e); const sp=e.params.speed; for(const f of e.state.f){ f.dir+=(Math.random()-0.5)*0.5; f.x+=Math.cos(f.dir)*sp; f.y+=Math.sin(f.dir)*sp*0.5; f.ph+=0.08; if(f.x<0)f.x+=e.cols; if(f.x>=e.cols)f.x-=e.cols; if(f.y<0)f.y+=e.rows; if(f.y>=e.rows)f.y-=e.rows; } },
+  draw(e){ const ramp=e.ramp(); for(const f of e.state.f){ const glow=Math.sin(f.ph)*0.5+0.5; if(glow>0.3){ const ch=shadeChar(ramp,glow); const col=glow>0.7?'var(--hud)':'var(--ink)'; e.grid.set(f.x,f.y,ch,col); } } },
+  icon:" .   *   \n   o   . \n*    .  o\n  .  *   \n .   o  .\no   .   *\n  *   .  \n .  o   .\n*   .  o " };
+
+/* 92 SANDPILE — abelian sandpile toppling */
+const Sandpile={ name:'Sandpile', cat:'cellular automata', fps:30,
+  sliders:[{id:'drop',label:'drop',min:1,max:20,step:1,def:6},{id:'speed',label:'topple',min:1,max:8,step:1,def:3}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(16,Math.round(e.cols/z)),R:Math.max(12,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; e.state.g=new Uint8Array(d.C*d.R); e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); const C=e.state.C,R=e.state.R,g=e.state.g; const ccx=(C/2)|0,ccy=(R/2)|0;
+    for(let i=0;i<(e.params.drop|0);i++)g[ccy*C+ccx]++;
+    for(let s=0;s<(e.params.speed|0);s++){ let any=false; const ng=g.slice(); for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const i=y*C+x; if(g[i]>=4){ any=true; ng[i]-=4; if(x>0)ng[i-1]++; if(x<C-1)ng[i+1]++; if(y>0)ng[i-C]++; if(y<R-1)ng[i+C]++; } } g.set(ng); if(!any)break; }
+    let tot=0; for(const v of g)tot+=v; if(tot>C*R*3)e.state.g=new Uint8Array(C*R); },
+  draw(e){ const ramp=e.ramp(); const g=e.state.g,C=e.state.C,R=e.state.R; const sx=e.cols/C,sy=e.rows/R; for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const v=g[y*C+x]; if(v>0){ const t=clamp(v/4,0,1); const px=Math.floor(x*sx),py=Math.floor(y*sy); e.grid.set(px,py,shadeChar(ramp,0.25+t*0.75),COL3(0.3+t*0.6)); } } },
+  icon:"   .#.   \n  .###.  \n .##@##. \n.##@@@##.\n#@@@@@@@#\n.##@@@##.\n .##@##. \n  .###.  \n   .#.   " };
+
+/* 93 TENTACLE — undulating tentacle/wave arms */
+const Tentacle={ name:'Tentacles', cat:'animation', fps:40,
+  sliders:[{id:'arms',label:'arms',min:2,max:6,step:1,def:4},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.06*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const cx=e.cols/2,cy=e.rows/2; const arms=e.params.arms; const t=e.state.t; const len=Math.min(e.cols,e.rows*2)*0.45*e.params.zoom;
+    for(let a=0;a<arms;a++){ const base=a/arms*TAU; let x=cx,y=cy,ang=base; for(let seg=0;seg<len;seg++){ ang+=Math.sin(t+seg*0.2+a)*0.08; x+=Math.cos(ang)*0.9; y+=Math.sin(ang)*0.45; const sh=1-seg/len; if(x>=0&&x<e.cols&&y>=0&&y<e.rows)e.grid.set(x,y,shadeChar(ramp,0.3+sh*0.7),COL3(0.4+sh*0.5)); } } },
+  icon:"  \\ | /  \n \\  |  / \n  \\ ~ /  \n ~ \\|/ ~ \n  ~ @ ~  \n ~ /|\\ ~ \n  / ~ \\  \n / ~|~ \\ \n/  ~|~  \\" };
+
+/* 94 HEXLIFE — life on a hex-ish grid (offset rows) */
+const HexLife={ name:'Hex Life', cat:'cellular automata', fps:12,
+  sliders:[{id:'density',label:'seed',min:0.1,max:0.5,step:0.05,def:0.35},{id:'speed',label:'speed',min:4,max:24,step:1,def:10}],
+  dims(e){ const z=e.params.zoom; return {C:Math.max(12,Math.round(e.cols/z)),R:Math.max(10,Math.round(e.rows/z))}; },
+  setup(e){ const d=this.dims(e); e.state.C=d.C; e.state.R=d.R; const n=d.C*d.R; e.state.a=new Uint8Array(n); for(let i=0;i<n;i++)e.state.a[i]=Math.random()<e.params.density?1:0; e.state.b=new Uint8Array(n); e.state.z=e.params.zoom; },
+  update(e){ if(e.params.zoom!==e.state.z)this.setup(e); e.fps=e.params.speed; e.step=1000/e.fps; const a=e.state.a,b=e.state.b,C=e.state.C,R=e.state.R;
+    for(let y=0;y<R;y++)for(let x=0;x<C;x++){ const odd=y&1; const dirs=odd?[[1,0],[-1,0],[0,1],[1,1],[0,-1],[1,-1]]:[[1,0],[-1,0],[-1,1],[0,1],[-1,-1],[0,-1]]; let s=0; for(const [dx,dy] of dirs)s+=a[((y+dy+R)%R)*C+((x+dx+C)%C)]; const i=y*C+x; b[i]=(a[i]&&(s===2||s===3||s===4))||(!a[i]&&s===2)?1:0; }
+    e.state.a=b.slice(); },
+  draw(e){ const ramp=e.ramp(); const ch=ramp[ramp.length-1]; const a=e.state.a,C=e.state.C,R=e.state.R; const sx=e.cols/C,sy=e.rows/R; for(let y=0;y<R;y++)for(let x=0;x<C;x++)if(a[y*C+x]){ const off=(y&1)?sx*0.5:0; const px=Math.floor(x*sx+off),py=Math.floor(y*sy); e.grid.set(px,py,ch,'var(--ink)'); } },
+  icon:" # # # # \n# # # # #\n # # # # \n# # # # #\n # @ @ # \n# @ @ @ #\n # @ @ # \n# # # # #\n # # # # " };
+
+/* 95 VORTEX — particles spiraling into a rotating vortex */
+const Vortex={ name:'Vortex', cat:'flow & particles', fps:40,
+  sliders:[{id:'count',label:'count',min:200,max:1000,step:50,def:500},{id:'swirl',label:'swirl',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.p=[]; const N=e.params.count|0; for(let i=0;i<N;i++)e.state.p.push({a:Math.random()*TAU,r:0.2+Math.random()*0.8}); e.state.np=N; },
+  update(e){ if((e.params.count|0)!==e.state.np)this.setup(e); const sw=e.params.swirl; for(const p of e.state.p){ p.a+=(0.06/(p.r+0.1))*sw; p.r-=0.004; if(p.r<0.05){ p.r=0.8+Math.random()*0.4; p.a=Math.random()*TAU; } } },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.45*e.params.zoom; for(const p of e.state.p){ const px=Math.round(cx+Math.cos(p.a)*p.r*R), py=Math.round(cy+Math.sin(p.a)*p.r*R*0.5); const t=clamp(1-p.r,0,1); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.3+t*0.6),COL3(0.4+t*0.5)); } },
+  icon:" .-~~~-. \n/ .-~-. \\\n|/ .-. \\|\n| ( @ ) |\n|\\ '-' /|\n\\ '-~-' /\n '-~~~-' \n .-~~~-. \n'       '" };
+
+/* 96 SCANNER — sweeping radar scan line revealing blips */
+const Radar={ name:'Radar', cat:'signal', fps:30,
+  sliders:[{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1},{id:'blips',label:'blips',min:3,max:12,step:1,def:6}],
+  setup(e){ e.state.a=0; e.state.b=[]; const N=e.params.blips|0; for(let i=0;i<N;i++)e.state.b.push({a:Math.random()*TAU,r:0.2+Math.random()*0.7,seen:0}); e.state.nb=N; },
+  update(e){ if((e.params.blips|0)!==e.state.nb)this.setup(e); e.state.a+=0.05*e.params.speed; if(e.state.a>TAU)e.state.a-=TAU; for(const b of e.state.b){ let da=Math.abs(((b.a-e.state.a)%TAU+TAU)%TAU); if(da<0.1)b.seen=1; b.seen=Math.max(0,b.seen-0.02); } },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.45*e.params.zoom;
+    // sweep line
+    for(let r=0;r<R;r+=0.7){ const px=Math.round(cx+Math.cos(e.state.a)*r), py=Math.round(cy+Math.sin(e.state.a)*r*0.5); const t=1-r/R; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.3+t*0.5),'var(--ink)'); }
+    // ring
+    for(let a=0;a<TAU;a+=0.15){ const px=Math.round(cx+Math.cos(a)*R), py=Math.round(cy+Math.sin(a)*R*0.5); e.grid.set(px,py,'.','var(--dim)'); }
+    for(const b of e.state.b){ if(b.seen>0.1){ const px=Math.round(cx+Math.cos(b.a)*b.r*R), py=Math.round(cy+Math.sin(b.a)*b.r*R*0.5); e.grid.set(px,py,e.charMode==='ascii'?'@':ramp[ramp.length-1], b.seen>0.6?'var(--hud)':'var(--ink)'); } } },
+  icon:" .-----.  \n.'  /  '.\n|  / @  |\n| /     |\n|/    @ |\n|\\      |\n| \\  @  |\n '.   .' \n  '---'  " };
+
+/* 97 CRYSTAL — growing symmetric snowflake crystal */
+const Crystal={ name:'Crystal Growth', cat:'noise & fields', fps:40,
+  sliders:[{id:'speed',label:'grow',min:1,max:8,step:1,def:3},{id:'branch',label:'branch',min:0.1,max:0.5,step:0.05,def:0.3}],
+  setup(e){ e.state.pts=[{x:0,y:0,gen:0}]; e.state.frontier=[{x:0,y:0,dir:0,gen:0}]; e.state.tick=0; },
+  update(e){ if(e.state.frontier.length===0||e.state.frontier.length>400||e.state.tick>120){ this.setup(e); } e.state.tick++;
+    for(let s=0;s<(e.params.speed|0);s++){ const nf=[]; for(const f of e.state.frontier){ if(f.gen>14)continue; const grow=[{dx:Math.cos(f.dir),dy:Math.sin(f.dir)}]; if(Math.random()<e.params.branch){ grow.push({dx:Math.cos(f.dir+1),dy:Math.sin(f.dir+1)}); grow.push({dx:Math.cos(f.dir-1),dy:Math.sin(f.dir-1)}); }
+        for(const g of grow){ const nx=f.x+g.dx, ny=f.y+g.dy; e.state.pts.push({x:nx,y:ny,gen:f.gen+1}); nf.push({x:nx,y:ny,dir:Math.atan2(g.dy,g.dx),gen:f.gen+1}); } }
+      e.state.frontier=nf.slice(0,200); if(e.state.frontier.length===0)break; } },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=0.8*e.params.zoom; const sym=6;
+    for(const p of e.state.pts){ for(let k=0;k<sym;k++){ const a=k*TAU/sym; const rx=p.x*Math.cos(a)-p.y*Math.sin(a), ry=p.x*Math.sin(a)+p.y*Math.cos(a); const px=Math.round(cx+rx*sc), py=Math.round(cy+ry*sc*0.5); const t=clamp(1-p.gen/16,0,1); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.4+t*0.6),COL3(0.5+t*0.4)); } } },
+  icon:"  \\ | /  \n \\ \\|/ / \n--\\ + /--\n   \\|/   \n-+--@--+-\n   /|\\   \n--/ + \\--\n / /|\\ \\ \n/  / \\  \\" };
+
+/* 98 TURBULENCE — domain-warped flowing noise */
+const Turbulence={ name:'Turbulence', cat:'noise & fields', fps:30,
+  sliders:[{id:'warp',label:'warp',min:0.5,max:4,step:0.1,def:2},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.03*e.params.speed; },
+  fbm(x,y,t){ let v=0,a=0.5,f=1; for(let o=0;o<3;o++){ v+=a*Math.sin(x*f+t)*Math.cos(y*f-t*0.7); a*=0.5; f*=2.1; } return v; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const sc=0.12/e.params.zoom; const wp=e.params.warp;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const qx=this.fbm(x*sc,y*sc,t)*wp; const qy=this.fbm(x*sc+5.2,y*sc+1.3,t)*wp; const v=this.fbm(x*sc+qx,y*sc+qy,t); const tt=clamp((v+1)/2,0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  icon:"~-=:.,:=-\n=:.,:=-~=\n.,:=-~=:.\n:=-~=:.,:\n-~=:.,:=-\n=:.,:=-~=\n.,:=-~=:.\n:=-~=:.,:\n-~=:.,:=-" };
+
+/* 99 ATTRACTOR DEJONG — peter de jong attractor morphing */
+const DeJong={ name:'De Jong', cat:'fractals', fps:30,
+  sliders:[{id:'points',label:'points',min:3000,max:14000,step:500,def:8000},{id:'drift',label:'drift',min:0,max:2,step:0.1,def:0.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.003*e.params.drift; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const a=2.0+Math.sin(t)*0.4,b=-2.0+Math.cos(t*0.8)*0.4,c=-1.2+Math.sin(t*0.6)*0.3,d=2.0+Math.cos(t*1.1)*0.3;
+    let x=0,y=0; const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.2*e.params.zoom; const acc=new Float32Array(e.cols*e.rows); const N=e.params.points|0;
+    for(let i=0;i<N;i++){ const nx=Math.sin(a*y)-Math.cos(b*x); const ny=Math.sin(c*x)-Math.cos(d*y); x=nx;y=ny; const px=Math.round(cx+x*sc),py=Math.round(cy+y*sc*0.5); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)acc[py*e.cols+px]++; }
+    for(let i=0;i<acc.length;i++)if(acc[i]>0){ const tt=clamp(acc[i]/5,0,1); e.grid.set(i%e.cols,(i/e.cols)|0,shadeChar(ramp,tt),COL3(tt)); } },
+  icon:".:. .:.  \n:.:.:.:. \n.::':'::.\n:'.:::.':\n.::.@.::.\n:'.:::.':\n.::.:.::.\n :.:.:.: \n  '.:.'  " };
+
+/* 100 SUPERNOVA — expanding shockwave burst that re-detonates */
+const Supernova={ name:'Supernova', cat:'physics', fps:40,
+  sliders:[{id:'rate',label:'rate',min:0.2,max:2,step:0.1,def:0.7},{id:'shells',label:'shells',min:1,max:4,step:1,def:2}],
+  setup(e){ e.state.shells=[]; e.state.cool=0; },
+  update(e){ e.state.cool-=e.params.rate; if(e.state.cool<=0){ e.state.shells.push({r:0,life:1,sp:0.5+Math.random()*0.5}); e.state.cool=30; if(e.state.shells.length>e.params.shells)e.state.shells.shift(); }
+    for(const s of e.state.shells){ s.r+=s.sp; s.life-=0.012; } e.state.shells=e.state.shells.filter(s=>s.life>0); },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=e.params.zoom;
+    for(const s of e.state.shells){ const R=s.r*sc; const thick=2+ (1-s.life)*3; for(let a=0;a<TAU;a+=0.04){ const jitter=Math.sin(a*8+s.r)*thick*0.5; const r=R+jitter; const px=Math.round(cx+Math.cos(a)*r), py=Math.round(cy+Math.sin(a)*r*0.5); const t=s.life; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,t),COL3(t)); } }
+    e.grid.set(cx,cy,ramp[ramp.length-1],'var(--hud)'); },
+  icon:" .  *  . \n* .:|:. *\n .:*#*:. \n:*#@@@#*:\n#@@@@@@@#\n:*#@@@#*:\n .:*#*:. \n* .:|:. *\n .  *  . " };
+
+/* ===== 9 REPLACEMENTS : trippy / 3d mix. 2 sliders + zoom each. ===== */
+
+/* replaces Data Stream -> HYPERCUBE (rotating 4D tesseract) */
+const Hypercube={ name:'Hypercube', cat:'3d in ascii', fps:40,
+  sliders:[{id:'speed',label:'speed',min:0.005,max:0.05,step:0.005,def:0.02},{id:'w',label:'4d depth',min:1.5,max:4,step:0.1,def:2.5}],
+  setup(e){ e.state.a=0; e.state.b=0; },
+  update(e){ e.state.a+=e.params.speed; e.state.b+=e.params.speed*0.6; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.16*e.params.zoom; const a=e.state.a,b=e.state.b; const W=e.params.w;
+    const verts=[]; for(let i=0;i<16;i++){ verts.push([(i&1?1:-1),(i&2?1:-1),(i&4?1:-1),(i&8?1:-1)]); }
+    const proj=verts.map(v=>{ let [x,y,z,w]=v; // rotate in xw and yz planes (4D)
+      let x1=x*Math.cos(a)-w*Math.sin(a), w1=x*Math.sin(a)+w*Math.cos(a); let y1=y*Math.cos(b)-z*Math.sin(b), z1=y*Math.sin(b)+z*Math.cos(b);
+      const k=W/(W-w1); x1*=k; y1*=k; z1*=k; // 4d->3d
+      let x2=x1*Math.cos(a*0.7)-z1*Math.sin(a*0.7), z2=x1*Math.sin(a*0.7)+z1*Math.cos(a*0.7); // rotate 3d
+      const d=4/(4+z2); return [cx+x2*sc*d, cy+y1*sc*d*0.5, z2]; });
+    const edges=[]; for(let i=0;i<16;i++)for(let j=i+1;j<16;j++){ let diff=0; for(let bit=1;bit<16;bit<<=1)if((i&bit)!==(j&bit))diff++; if(diff===1)edges.push([i,j]); }
+    for(const [i,j] of edges){ const A=proj[i],B=proj[j]; const st=Math.max(1,Math.max(Math.abs(A[0]-B[0]),Math.abs(A[1]-B[1]))|0); for(let s=0;s<=st;s++){ const px=A[0]+(B[0]-A[0])*s/st,py=A[1]+(B[1]-A[1])*s/st; const z=(A[2]+B[2])/2; const t=(z+2)/4; e.grid.set(px,py,shadeChar(ramp,0.35+t*0.6),COL3(0.4+t*0.5)); } } },
+  icon:" .--.--. \n/|  |  |\\\n|+--+--+|\n||  |  ||\n|+--@--+|\n||  |  ||\n|+--+--+|\n\\|  |  |/\n '--'--' " };
+
+/* replaces De Jong -> HOPALONG (Barry Martin attractor, morphing) */
+const Hopalong={ name:'Hopalong', cat:'fractals', fps:30,
+  sliders:[{id:'points',label:'points',min:4000,max:16000,step:1000,def:9000},{id:'drift',label:'drift',min:0,max:2,step:0.1,def:0.6}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.004*e.params.drift; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const a=1.4+Math.sin(t)*0.5,b=1.6+Math.cos(t*0.8)*0.3,c=1.2+Math.sin(t*0.6)*0.3;
+    let x=0,y=0; const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.04*e.params.zoom; const acc=new Float32Array(e.cols*e.rows); const N=e.params.points|0;
+    for(let i=0;i<N;i++){ const nx=y-Math.sign(x)*Math.sqrt(Math.abs(b*x-c)); const ny=a-x; x=nx;y=ny; const px=Math.round(cx+x*sc),py=Math.round(cy+y*sc*0.5); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)acc[py*e.cols+px]++; }
+    for(let i=0;i<acc.length;i++)if(acc[i]>0){ const tt=clamp(acc[i]/4,0,1); e.grid.set(i%e.cols,(i/e.cols)|0,shadeChar(ramp,0.3+tt*0.7),COL3(0.4+tt*0.5)); } },
+  icon:". :.::. .\n:.:'':.::\n.:' @ ':.\n:' .::. ':\n: :'':': :\n:.:.::.:.:\n.::'  ':..\n :.::::.:: \n. '.::.' ." };
+
+/* replaces Burning Ship -> TRUCHET (animated rotating truchet tiles) */
+const Truchet={ name:'Truchet', cat:'noise & fields', fps:24,
+  sliders:[{id:'tile',label:'tile',min:2,max:8,step:1,def:4},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.03*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const ts=e.params.tile*e.params.zoom; const t=e.state.t;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const tx=Math.floor(x/ts), ty=Math.floor(y/ts); const seed=Math.sin(tx*12.9+ty*78.2)*43758.5; const flip=((seed-Math.floor(seed))+Math.sin(t+tx*0.5+ty*0.3)*0.5)>0.5; const u=(x%ts)/ts, v=(y%ts)/ts;
+      const d=flip?Math.abs(u-v):Math.abs(u-(1-v)); if(Math.abs(d)<0.18){ const val=0.4+Math.sin(t+tx+ty)*0.3+0.3; const ch=shadeChar(ramp,clamp(val,0,1)); e.grid.set(x,y,ch,COL3(val)); } } },
+  icon:"\\  /\\  / \n \\/  \\/  \n /\\  /\\  \n/  \\/  \\ \n\\  /\\  / \n \\/  \\/  \n /\\  /\\  \n/  \\/  \\ \n\\  /\\  / " };
+
+/* replaces Globe -> SPHERE LATTICE (rotating wireframe sphere grid) */
+const SphereLattice={ name:'Sphere Lattice', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spin',label:'spin',min:0.005,max:0.05,step:0.005,def:0.02},{id:'detail',label:'detail',min:8,max:20,step:1,def:14}],
+  setup(e){ e.state.a=0; },
+  update(e){ e.state.a+=e.params.spin; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.42*e.params.zoom; const a=e.state.a; const n=e.params.detail|0;
+    const plot=(x,y,z)=>{ const rx=x*Math.cos(a)-z*Math.sin(a), rz=x*Math.sin(a)+z*Math.cos(a); const d=2/(2+rz); const px=Math.round(cx+rx*R*d), py=Math.round(cy+y*R*d*0.5); const t=(rz+1)/2; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.3+t*0.7),COL3(0.4+t*0.5)); };
+    for(let i=0;i<=n;i++){ const lat=(i/n-0.5)*Math.PI; for(let j=0;j<n*2;j++){ const lon=j/(n*2)*TAU; plot(Math.cos(lat)*Math.cos(lon),Math.sin(lat),Math.cos(lat)*Math.sin(lon)); } }
+    for(let j=0;j<n;j++){ const lon=j/n*TAU; for(let i=0;i<=n*2;i++){ const lat=(i/(n*2)-0.5)*Math.PI; plot(Math.cos(lat)*Math.cos(lon),Math.sin(lat),Math.cos(lat)*Math.sin(lon)); } } },
+  icon:"  .-=-.  \n.'/ | \\'.\n/--+-+--\\ \n|+-+-+-+|\n|--@-@--|\n|+-+-+-+|\n\\--+-+--/ \n'.\\ | /.'\n  '-=-'  " };
+
+/* replaces Clifford -> ICOSAHEDRON (rotating solid, depth dots) */
+const Icosa={ name:'Icosahedron', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spin',label:'spin',min:0.005,max:0.05,step:0.005,def:0.018},{id:'fill',label:'density',min:1,max:5,step:1,def:3}],
+  setup(e){ e.state.ax=0; e.state.ay=0; const p=(1+Math.sqrt(5))/2; const v=[[-1,p,0],[1,p,0],[-1,-p,0],[1,-p,0],[0,-1,p],[0,1,p],[0,-1,-p],[0,1,-p],[p,0,-1],[p,0,1],[-p,0,-1],[-p,0,1]]; const norm=Math.hypot(1,p); e.state.v=v.map(q=>q.map(c=>c/norm));
+    e.state.edges=[[0,11],[0,5],[0,1],[0,7],[0,10],[1,5],[5,11],[11,10],[10,7],[7,1],[3,9],[3,4],[3,2],[3,6],[3,8],[4,9],[9,8],[8,6],[6,2],[2,4],[5,9],[11,4],[10,2],[7,6],[1,8],[5,4],[11,2],[10,6],[7,8],[1,9]]; },
+  update(e){ e.state.ax+=e.params.spin; e.state.ay+=e.params.spin*0.7; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.32*e.params.zoom; const ax=e.state.ax,ay=e.state.ay;
+    const rot=(p)=>{ let [x,y,z]=p; let y1=y*Math.cos(ax)-z*Math.sin(ax), z1=y*Math.sin(ax)+z*Math.cos(ax); let x1=x*Math.cos(ay)-z1*Math.sin(ay); z1=x*Math.sin(ay)+z1*Math.cos(ay); return [x1,y1,z1]; };
+    const P=e.state.v.map(rot);
+    for(const [i,j] of e.state.edges){ const A=P[i],B=P[j]; const ax2=cx+A[0]*sc, ay2=cy+A[1]*sc*0.5, bx=cx+B[0]*sc, by=cy+B[1]*sc*0.5; const st=Math.max(1,Math.max(Math.abs(ax2-bx),Math.abs(ay2-by))|0)*(e.params.fill); for(let s=0;s<=st;s++){ const px=ax2+(bx-ax2)*s/st,py=ay2+(by-ay2)*s/st; const z=(A[2]+B[2])/2; const t=(z+1)/2; e.grid.set(px,py,shadeChar(ramp,0.3+t*0.7),COL3(0.4+t*0.5)); } } },
+  icon:"   .^.   \n  /|||\\  \n .'/|\\'. \n/.'-+-'.\\ \n|<--@-->|\n\\.'-+-'./ \n '.\\|/.' \n  \\|||/  \n   'v'   " };
+
+/* replaces SmoothLife -> PLASMA BLOOM (layered plasma, hypnotic) */
+const PlasmaBloom={ name:'Plasma Bloom', cat:'noise & fields', fps:30,
+  sliders:[{id:'scale',label:'scale',min:0.05,max:0.3,step:0.01,def:0.12},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.04*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const s=e.params.scale/e.params.zoom; const cx=e.cols/2,cy=e.rows/2;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=x-cx,dy=(y-cy)*2; const r=Math.hypot(dx,dy)*s; const v=Math.sin(r*3-t*2)+Math.sin(x*s+t)+Math.sin(y*s*2-t*1.3)+Math.sin((x+y)*s+t*0.7); const tt=clamp((v+4)/8,0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  icon:"=*#@#*=:.\n*#@@@#*=:\n#@@@@@#*=\n@@@@@@@#*\n@@@@@@@@#\n@@@@@@@#*\n#@@@@@#*=\n*#@@@#*=:\n=*#@#*=:." };
+
+/* replaces Twister -> TORUS FIELD (rotating donut of flowing dots) */
+const TorusField={ name:'Torus Field', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spin',label:'spin',min:0.01,max:0.08,step:0.005,def:0.03},{id:'flow',label:'flow',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.a=0; e.state.f=0; },
+  update(e){ e.state.a+=e.params.spin; e.state.f+=0.05*e.params.flow; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.2*e.params.zoom; const a=e.state.a,f=e.state.f; const R=1.8,r=0.8;
+    const cA=Math.cos(a),sA=Math.sin(a);
+    for(let u=0;u<TAU;u+=0.18)for(let v=0;v<TAU;v+=0.4){ const vv=v+f; const x=(R+r*Math.cos(vv))*Math.cos(u), y=(R+r*Math.cos(vv))*Math.sin(u), z=r*Math.sin(vv);
+      const x1=x, y1=y*cA-z*sA, z1=y*sA+z*cA; const x2=x1*Math.cos(a*0.5)-z1*Math.sin(a*0.5), z2=x1*Math.sin(a*0.5)+z1*Math.cos(a*0.5);
+      const d=3/(3+z2); const px=Math.round(cx+x2*sc*d), py=Math.round(cy+y1*sc*d*0.5); const t=(z2+2.6)/5.2; if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,0.3+clamp(t,0,1)*0.7),COL3(0.4+clamp(t,0,1)*0.5)); } },
+  icon:" .-~~~-. \n.'o o o'.\n/ o   o \\\n|o  .  o|\n|o ( ) o|\n|o  '  o|\n\\ o   o /\n'.o o o.'\n '-~~~-' " };
+
+/* replaces Lightning -> LIQUID CRYSTAL (oil-on-water interference shimmer) */
+const Liquid={ name:'Liquid Crystal', cat:'noise & fields', fps:30,
+  sliders:[{id:'bands',label:'bands',min:2,max:8,step:1,def:5},{id:'speed',label:'speed',min:0.2,max:2,step:0.1,def:1}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.03*e.params.speed; },
+  draw(e){ const ramp=e.ramp(); const t=e.state.t; const b=e.params.bands; const s=0.1/e.params.zoom; const cx=e.cols/2,cy=e.rows/2;
+    for(let y=0;y<e.rows;y++)for(let x=0;x<e.cols;x++){ const dx=(x-cx)*s,dy=(y-cy)*2*s; let v=0; for(let k=0;k<b;k++){ const ph=k*1.7; v+=Math.sin(dx*Math.cos(ph)+dy*Math.sin(ph)+t*(1+k*0.2)); } v+=Math.sin(Math.hypot(dx,dy)*3-t*1.5); const tt=clamp((v/(b+1)+1)/2,0,1); const ch=shadeChar(ramp,tt); if(ch!==' ')e.grid.set(x,y,ch,COL3(tt)); } },
+  icon:"~=:.:=~*#\n=:.:=~*#*\n:.:=~*#*=\n.:=~*#*=~\n:=~*#*=~:\n=~*#*=~:.\n~*#*=~:.:\n*#*=~:.:=\n#*=~:.:=~" };
+
+/* replaces Sierpinski -> APOLLONIAN (breathing nested circles) */
+const Apollonian={ name:'Apollonian', cat:'geometry', fps:30,
+  sliders:[{id:'depth',label:'depth',min:2,max:5,step:1,def:3},{id:'speed',label:'speed',min:0.1,max:1.5,step:0.1,def:0.5}],
+  setup(e){ e.state.t=0; },
+  update(e){ e.state.t+=0.02*e.params.speed; },
+  circle(e,cx,cy,r,ramp,shade){ if(r<1)return; for(let a=0;a<TAU;a+=1/r){ const px=Math.round(cx+Math.cos(a)*r), py=Math.round(cy+Math.sin(a)*r*0.5); if(px>=0&&px<e.cols&&py>=0&&py<e.rows)e.grid.set(px,py,shadeChar(ramp,shade),COL3(shade)); } },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const R=Math.min(e.cols,e.rows*2)*0.42*e.params.zoom; const t=e.state.t; const breathe=1+Math.sin(t)*0.08;
+    this.circle(e,cx,cy,R*breathe,ramp,0.8);
+    const depth=e.params.depth|0; const place=(ox,oy,rad,lvl)=>{ if(lvl<=0||rad<1.5)return; this.circle(e,ox,oy,rad,ramp,0.4+lvl*0.12);
+      const n=3; for(let k=0;k<n;k++){ const a=k/n*TAU+t*(lvl%2?1:-1); const nr=rad*0.42; const dist=rad-nr; place(ox+Math.cos(a)*dist,oy+Math.sin(a)*dist*0.5,nr,lvl-1); } };
+    place(cx,cy,R*breathe*0.5,depth); },
+  icon:" .-~~-.  \n/  __  \\ \n| /  \\ | \n|| @@ ||\n| \\__/ | \n\\  ()  / \n '-..-'  \n .-~~-.  \n'      ' " };
+
+/* replaces L-System Plant -> PYRAMID (rotating 3D wireframe pyramid/octahedron) */
+const Pyramid={ name:'Pyramid', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spin',label:'spin',min:0.005,max:0.05,step:0.005,def:0.02},{id:'tilt',label:'tilt',min:0,max:1,step:0.1,def:0.4}],
+  setup(e){ e.state.a=0; },
+  update(e){ e.state.a+=e.params.spin; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.34*e.params.zoom; const a=e.state.a; const tilt=e.params.tilt;
+    // square-base pyramid: 4 base corners + apex
+    const base=[[-1,1,-1],[1,1,-1],[1,1,1],[-1,1,1]]; const apex=[0,-1.3,0]; const verts=base.concat([apex]);
+    const rot=(p)=>{ let [x,y,z]=p; let x1=x*Math.cos(a)-z*Math.sin(a), z1=x*Math.sin(a)+z*Math.cos(a); let y1=y*Math.cos(tilt)-z1*Math.sin(tilt), z2=y*Math.sin(tilt)+z1*Math.cos(tilt); const d=3/(3+z2); return [cx+x1*sc*d, cy+y1*sc*d*0.5, z2]; };
+    const P=verts.map(rot); const edges=[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4]];
+    for(const [i,j] of edges){ const A=P[i],B=P[j]; const st=Math.max(1,Math.max(Math.abs(A[0]-B[0]),Math.abs(A[1]-B[1]))|0); for(let s=0;s<=st;s++){ const px=A[0]+(B[0]-A[0])*s/st,py=A[1]+(B[1]-A[1])*s/st; const z=(A[2]+B[2])/2; const t=(z+2)/4; e.grid.set(px,py,shadeChar(ramp,0.35+clamp(t,0,1)*0.6),COL3(0.4+clamp(t,0,1)*0.5)); } } },
+  icon:"    ^    \n   /|\\   \n  / | \\  \n .' | '. \n/   |   \\\n'.  |  .'\n '. | .' \n  '.|.'  \n   '|'   " };
+
+/* replaces Hex Life -> CUBE FIELD (volumetric grid of rotating cubes / 3d voxels) */
+const CubeField={ name:'Cube Field', cat:'3d in ascii', fps:40,
+  sliders:[{id:'spin',label:'spin',min:0.005,max:0.04,step:0.005,def:0.015},{id:'grid',label:'grid',min:2,max:4,step:1,def:3}],
+  setup(e){ e.state.a=0; e.state.t=0; },
+  update(e){ e.state.a+=e.params.spin; e.state.t+=0.04; },
+  draw(e){ const ramp=e.ramp(); const cx=e.cols/2,cy=e.rows/2; const sc=Math.min(e.cols,e.rows*2)*0.12*e.params.zoom; const a=e.state.a,t=e.state.t; const n=e.params.grid;
+    const rot=(x,y,z)=>{ let x1=x*Math.cos(a)-z*Math.sin(a), z1=x*Math.sin(a)+z*Math.cos(a); let y1=y*Math.cos(a*0.6)-z1*Math.sin(a*0.6), z2=y*Math.sin(a*0.6)+z1*Math.cos(a*0.6); return [x1,y1,z2]; };
+    const dots=[];
+    for(let i=0;i<n;i++)for(let j=0;j<n;j++)for(let k=0;k<n;k++){ const pulse=Math.sin(t+i+j+k)*0.5+0.5; if(pulse<0.35)continue; const bx=(i-(n-1)/2)*1.6,by=(j-(n-1)/2)*1.6,bz=(k-(n-1)/2)*1.6; const sz=0.45*pulse;
+      // 8 cube corners
+      for(let c=0;c<8;c++){ const ox=(c&1?sz:-sz),oy=(c&2?sz:-sz),oz=(c&4?sz:-sz); const [rx,ry,rz]=rot(bx+ox,by+oy,bz+oz); const d=4/(4+rz); dots.push([cx+rx*sc*d, cy+ry*sc*d*0.5, rz, pulse]); } }
+    dots.sort((p,q)=>p[2]-q[2]); for(const [x,y,z,pulse] of dots){ const t2=(z+3)/6; e.grid.set(x,y,shadeChar(ramp,0.3+clamp(t2,0,1)*0.6),COL3(0.4+clamp(t2,0,1)*0.5)); } },
+  icon:" #-# #-# \n/|/|/|/| \n#-# #-#| \n|#|#|#|# \n#-@ @-#| \n|#|#|#|/ \n#-# #-#  \n|/|/|/   \n#-# #-#  " };
+
+const SKETCHES=[Rotozoom,Fire,TorusField,Copper,Warp,Wormhole,Terrain,Ocean,Aurora,Liquid,Apollonian,Hilbert,Koch,Pyramid,Magnetic,Penrose,Moire,Orbit,Plinko,Sonar,Hypercube,Pipes,BlackHole,RubikSpin,Super,Lava,Smoke,RadialEq,Waveform,Mandala,Wells,Foam,Raindrops,Dragon,Neural,Collision,Cloth,CharRain,Spiral,BreatheGrid,Fireflies,Sandpile,Tentacle,CubeField,Vortex,Radar,Crystal,Turbulence,Hopalong,Supernova,Life,Flow,Donut,Rule30,Brain,Boids,Rain,Plasma,Mandel,Stars,Julia,Truchet,Perlin,Worley,Ripple,Wire,Cyclic,Ant,Sand,Lorenz,Pendulum,Wave,Bounce,Fireworks,Fountain,Snow,Slime,Cube,SphereLattice,Spiro,Newton,Icosa,SineFlow,Curl,PlasmaBloom,Swarm,Rose,Harmono,Spectrum,Scope,Knot,Tunnel,Meta,Kaleido,Phyllo,HighLife,Voronoi,Chladni,Galaxy,DLA];
+
+const grid100=document.getElementById('grid100');
+const pager=document.getElementById('pager');
+let hoverEngine=null, hoverPre=null;
+function stopHover(){ if(hoverEngine){ hoverEngine.destroy(); hoverEngine=null; } if(hoverPre){ hoverPre.textContent=hoverPre._icon; hoverPre=null; } }
+
+const PER_PAGE=50, PAGES=Math.ceil(100/PER_PAGE);
+let curPage=0;
+
+function makeTile(i){ const sk=SKETCHES[i]; const tile=document.createElement(sk?'button':'div');
+  tile.className='tile'+(sk?'':' empty'); tile.innerHTML='<span class="num">'+String(i+1).padStart(2,'0')+'</span>';
+  if(sk){
+    const pre=document.createElement('pre'); pre._icon=sk.icon; pre.textContent=sk.icon; tile.appendChild(pre);
+    const lbl=document.createElement('span'); lbl.className='lbl'; lbl.textContent=sk.name; tile.appendChild(lbl);
+    tile.addEventListener('mouseenter',()=>{ stopHover(); hoverPre=pre; const eng=new Engine(pre,sk,{mini:true,cols:18,rows:12}); eng.fps=Math.min(eng.fps,14); eng.step=1000/eng.fps; hoverEngine=eng; });
+    tile.addEventListener('mouseleave',stopHover);
+    tile.addEventListener('click',()=>{ stopHover(); openInner(sk); });
+  }
+  return tile;
+}
+
+function renderPage(p){ stopHover(); curPage=clamp(p,0,PAGES-1); grid100.innerHTML='';
+  const start=curPage*PER_PAGE;
+  for(let i=start;i<start+PER_PAGE && i<100;i++) grid100.appendChild(makeTile(i));
+  renderPager();
+}
+function renderPager(){ pager.innerHTML='';
+  const prev=document.createElement('button'); prev.className='iconbtn'; prev.innerHTML='&#9665; <span class="btn-label">prev</span>'; prev.title='previous page'; prev.setAttribute('aria-label','previous page'); prev.disabled=curPage===0;
+  prev.onclick=()=>{ if(curPage>0) renderPage(curPage-1); }; pager.appendChild(prev);
+  const rand=document.createElement('button'); rand.className='iconbtn'; rand.innerHTML='&#10042; <span class="btn-label">random</span>'; rand.title='random sim'; rand.setAttribute('aria-label','random sim');
+  rand.onclick=()=>{ stopHover(); openInner(SKETCHES[Math.floor(Math.random()*SKETCHES.length)]); }; pager.appendChild(rand);
+  const next=document.createElement('button'); next.className='iconbtn'; next.innerHTML='<span class="btn-label">next</span> &#9655;'; next.title='next page'; next.setAttribute('aria-label','next page'); next.disabled=curPage===PAGES-1;
+  next.onclick=()=>{ if(curPage<PAGES-1) renderPage(curPage+1); }; pager.appendChild(next);
+}
+renderPage(0);
+
+const landing=document.getElementById('landing'), inner=document.getElementById('inner'), gridPre=document.getElementById('grid');
+const innerName=document.getElementById('innerName'), innerCat=document.getElementById('innerCat'), innerIco=document.getElementById('innerIco');
+const tuneCol1=document.getElementById('tuneCol1'), tuneCol2=document.getElementById('tuneCol2'), zoomCol=document.getElementById('zoomCol');
+let activeEngine=null, activeSketch=null, activeIdx=-1;
+
+const ZOOM_SLIDER={id:'zoom',label:'zoom',min:0.4,max:2.5,step:0.05,def:1};
+
+function makeSlider(col, s){
+  col.innerHTML='';
+  const wrap=document.createElement('div'); wrap.className='slider-row';
+  wrap.innerHTML=
+    '<div class="srow-top"><label>'+s.label+'</label><span class="val">'+s.def+'</span></div>'+
+    '<div class="srow-bot"><input type="range" min="'+s.min+'" max="'+s.max+'" step="'+s.step+'" value="'+s.def+'"></div>';
+  const input=wrap.querySelector('input'), val=wrap.querySelector('.val');
+  input.addEventListener('input',()=>{ val.textContent=input.value; activeEngine.setParam(s.id,parseFloat(input.value)); });
+  col.appendChild(wrap);
+}
+
+function buildSliders(sk){
+  const s=sk.sliders||[];
+  if(s[0]) makeSlider(tuneCol1, s[0]); else tuneCol1.innerHTML='';
+  if(s[1]) makeSlider(tuneCol2, s[1]); else tuneCol2.innerHTML='';
+  makeSlider(zoomCol, ZOOM_SLIDER);      // universal, always present
+}
+
+function openInner(sk,mode){ mode=mode||'ascii'; activeSketch=sk; activeIdx=SKETCHES.indexOf(sk); innerName.textContent=sk.name; innerCat.textContent=sk.cat; innerIco.textContent=sk.icon;
+  landing.style.display='none'; inner.classList.add('show'); document.body.classList.add('inner-open'); if(activeEngine)activeEngine.destroy(); activeEngine=new Engine(gridPre,sk,{}); activeEngine.setMode(mode); buildSliders(sk);
+  document.querySelectorAll('#charsetModes button').forEach(b=>b.classList.toggle('active',b.dataset.m===mode));
+  requestAnimationFrame(fitWindowed); gridPre.focus(); }
+function closeInner(){ if(activeEngine){activeEngine.destroy(); activeEngine=null;} inner.classList.remove('show','fs'); document.body.classList.remove('inner-open'); landing.style.display=''; }
+function stepInner(d){ if(activeIdx<0)return; const n=(activeIdx+d+SKETCHES.length)%SKETCHES.length; const fs=inner.classList.contains('fs'); const mode=activeEngine?activeEngine.charMode:'ascii'; openInner(SKETCHES[n],mode); if(fs){ inner.classList.add('fs'); if(activeEngine)activeEngine.hideHud=true; requestAnimationFrame(fitFs); } }
+function randomInner(){ if(activeIdx<0)return; let n=activeIdx; if(SKETCHES.length>1){ while(n===activeIdx) n=Math.floor(Math.random()*SKETCHES.length); } const fs=inner.classList.contains('fs'); const mode=activeEngine?activeEngine.charMode:'ascii'; openInner(SKETCHES[n],mode); if(fs){ inner.classList.add('fs'); if(activeEngine)activeEngine.hideHud=true; requestAnimationFrame(fitFs); } }
+
+document.getElementById('backBtn').onclick=closeInner;
+document.getElementById('fsBtn').onclick=enterFs;
+document.getElementById('fsExit').onclick=exitFs;
+document.getElementById('prevBtn').onclick=()=>stepInner(-1);
+document.getElementById('randBtn').onclick=randomInner;
+document.getElementById('nextBtn').onclick=()=>stepInner(1);
+
+function measureCell(fontPx){
+  const probe=document.createElement('pre');
+  probe.style.cssText='position:absolute;left:-9999px;top:0;visibility:hidden;margin:0;padding:0;font-family:var(--font);white-space:pre;font-size:'+fontPx+'px;line-height:'+(fontPx*1.08)+'px;';
+  let txt=''; for(let i=0;i<100;i++)txt+='M'; for(let i=0;i<20;i++)txt+='\nM';
+  probe.textContent=txt;
+  document.body.appendChild(probe);
+  const r=probe.getBoundingClientRect();
+  const w=r.width/100, h=r.height/21;
+  probe.remove();
+  return {w,h};
+}
+
+function enterFs(){
+  if(!activeEngine) return;
+  inner.classList.add('fs');
+  activeEngine.hideHud=true;
+  fitFs();
+  gridPre.focus();
+}
+function fitFs(){
+  const vw=window.innerWidth, vh=window.innerHeight;
+  const fontPx=20;                     // matches windowed baked-in size
+  const {h}=measureCell(fontPx);
+  const cw=h;                          // square cells: width = row height
+  const cols=Math.ceil(vw/cw)+1;       // +1 and ceil so the right/bottom edge is covered
+  const rows=Math.ceil(vh/h)+1;
+  document.documentElement.style.setProperty('--fs-size',fontPx+'px');
+  document.documentElement.style.setProperty('--fs-line',h.toFixed(3)+'px');
+  activeEngine.resize(cols,rows);
+}
+function exitFs(){
+  inner.classList.remove('fs');
+  if(activeEngine){ activeEngine.hideHud=false; fitWindowed(); }
+}
+function fitWindowed(){
+  if(!activeEngine || inner.classList.contains('fs')) return;
+  const stage=document.querySelector('.stage');
+  const head=document.querySelector('.inner-head');
+  const controls=document.querySelector('.controls');
+  const wrap=document.querySelector('.inner-wrap');
+  const sc=getComputedStyle(stage), wc=getComputedStyle(wrap);
+  const padX=parseFloat(sc.paddingLeft)+parseFloat(sc.paddingRight);
+  const padY=parseFloat(sc.paddingTop)+parseFloat(sc.paddingBottom);
+  const wrapPadY=parseFloat(wc.paddingTop)+parseFloat(wc.paddingBottom);
+  const fontPx=20;                     // baked-in ~1.5x (was 13) to match the 150% look
+  const {h}=measureCell(fontPx);
+  const cw=h;                          // square cells: width = row height
+
+  const availW=stage.clientWidth - padX;
+  // vertical budget: viewport minus header, controls, wrap padding, stage padding, borders
+  const used = head.offsetHeight + controls.offsetHeight + wrapPadY + padY + 12;
+  const availH = window.innerHeight - used;
+
+  const cols=Math.max(24, Math.floor(availW/cw));
+  const rows=Math.max(12, Math.floor(availH/h));   // fill the height that's actually left
+  document.documentElement.style.setProperty('--fs-size','20px');
+  document.documentElement.style.setProperty('--fs-line',h.toFixed(3)+'px');
+  activeEngine.resize(cols,rows);
+}
+document.querySelectorAll('#charsetModes button').forEach(b=>{ b.onclick=()=>{ document.querySelectorAll('#charsetModes button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); activeEngine.setMode(b.dataset.m); }; });
+gridPre.addEventListener('keydown',e=>{ if(!activeEngine)return; if(e.key===' '){activeEngine.running=!activeEngine.running; e.preventDefault();} if(e.key==='r'||e.key==='R'){ if(activeSketch.setup)activeSketch.setup(activeEngine);} if(e.key==='Escape'&&inner.classList.contains('fs'))exitFs(); });
+window.addEventListener('resize',()=>{ if(!inner.classList.contains('show'))return; if(inner.classList.contains('fs'))fitFs(); else fitWindowed(); });
+
+document.querySelectorAll('#themes button').forEach(b=>{ b.onclick=()=>{ document.documentElement.setAttribute('data-theme',b.dataset.t); document.querySelectorAll('#themes button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); }; });
+document.documentElement.setAttribute('data-theme','green');
+</script>
+</body>
+</html>
