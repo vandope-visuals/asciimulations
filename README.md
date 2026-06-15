@@ -162,8 +162,6 @@ each sim's panel auto-builds from its `sliders` array plus two universal control
 - **two tuning knobs** — whatever that sim declared (seed/speed, spin/girth, detail/dive, count/cohere…)
 - **zoom** — universal, but context-dependent per sim: cell coarseness for CA, field scale for flow, dive rate for fractals, overall size for 3D solids. changing it re-runs `setup` where the grid dimensions matter.
 
-a live HUD line sits under the stage with per-sim telemetry (generation, particle count, fps) and the active keys.
-
 ## keyboard shortcuts
 
 | key | action |
